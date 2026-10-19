@@ -1,0 +1,633 @@
+                                    CHAPTER 3
+
+Complex queries based on the concepts of constraints, sets, joins,
+views, Triggers and Cursors.
+(min 3 questions with queries for all topics)
+
+
+================================================================================
+3.1 Adding Constraints and Queries based on Constraints
+================================================================================
+
+Question 1: Show that the users table has a PRIMARY KEY on id and NOT NULL on email.
+
+SQL Statement:
+DESC users;
+
+Output:
++----------------+--------------+------+-----+-------------------+-------------------+
+| Field          | Type         | Null | Key | Default           | Extra             |
++----------------+--------------+------+-----+-------------------+-------------------+
+| id             | int          | NO   | PRI | NULL              | auto_increment    |
+| email          | varchar(255) | NO   | UNI | NULL              |                   |
+| password_hash  | varchar(255) | NO   |     | NULL              |                   |
+| first_name     | varchar(100) | NO   |     | NULL              |                   |
+| last_name      | varchar(100) | NO   |     | NULL              |                   |
+| role_id        | int          | NO   | MUL | 2                 |                   |
+| is_active      | tinyint(1)   | YES  |     | 1                 |                   |
++----------------+--------------+------+-----+-------------------+-------------------+
+
+Explanation: The id column is the PRIMARY KEY (PRI) and email is UNIQUE (UNI).
+             first_name, last_name, email are NOT NULL.
+
+________________________________________
+
+Question 2: Show the FOREIGN KEY constraint between bank_accounts and users.
+
+SQL Statement:
+SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_NAME = 'bank_accounts' AND REFERENCED_TABLE_NAME IS NOT NULL;
+
+Output:
++----------------------------+-------------+-----------------------+------------------------+
+| CONSTRAINT_NAME            | COLUMN_NAME | REFERENCED_TABLE_NAME | REFERENCED_COLUMN_NAME |
++----------------------------+-------------+-----------------------+------------------------+
+| bank_accounts_ibfk_1       | user_id     | users                 | id                     |
++----------------------------+-------------+-----------------------+------------------------+
+
+Explanation: The user_id column in bank_accounts references the id column in users table.
+
+________________________________________
+
+Question 3: Show the CHECK constraint on bank_accounts balance.
+
+SQL Statement:
+SELECT CONSTRAINT_NAME, CHECK_CLAUSE
+FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA = 'bank_app';
+
+Output:
++-------------------+------------------+
+| CONSTRAINT_NAME   | CHECK_CLAUSE     |
++-------------------+------------------+
+| chk_balance       | (`balance` >= 0) |
++-------------------+------------------+
+
+Explanation: The CHECK constraint ensures that account balance can never go below zero.
+
+
+================================================================================
+3.2 Queries based on Aggregate Functions
+================================================================================
+
+Question 1: Count the total number of users in the system.
+
+SQL Statement:
+SELECT COUNT(*) AS Total_Users FROM users;
+
+Output:
++-------------+
+| Total_Users |
++-------------+
+|           6 |
++-------------+
+
+________________________________________
+
+Question 2: Find the average balance across all bank accounts.
+
+SQL Statement:
+SELECT ROUND(AVG(balance), 2) AS Avg_Balance FROM bank_accounts;
+
+Output:
++-------------+
+| Avg_Balance |
++-------------+
+|    15443.75 |
++-------------+
+
+________________________________________
+
+Question 3: Find the maximum and minimum balance in bank accounts.
+
+SQL Statement:
+SELECT MAX(balance) AS Highest_Balance, MIN(balance) AS Lowest_Balance FROM bank_accounts;
+
+Output:
++-----------------+----------------+
+| Highest_Balance | Lowest_Balance |
++-----------------+----------------+
+|        50000.00 |         550.00 |
++-----------------+----------------+
+
+________________________________________
+
+Question 4: Find total balance and number of accounts grouped by account type.
+
+SQL Statement:
+SELECT account_type, COUNT(*) AS Total_Accounts, SUM(balance) AS Total_Balance
+FROM bank_accounts
+GROUP BY account_type;
+
+Output:
++--------------+----------------+---------------+
+| account_type | Total_Accounts | Total_Balance |
++--------------+----------------+---------------+
+| savings      |              5 |      68000.00 |
+| checking     |              1 |       5000.00 |
+| business     |              2 |      50550.00 |
++--------------+----------------+---------------+
+
+
+================================================================================
+3.3 Complex Queries based on Sets
+================================================================================
+
+Question 1: Find users who have BOTH savings AND checking accounts (INTERSECT using IN).
+
+SQL Statement:
+SELECT DISTINCT u.first_name, u.last_name
+FROM users u
+JOIN bank_accounts b ON u.id = b.user_id
+WHERE b.account_type = 'savings'
+  AND u.id IN (
+    SELECT user_id FROM bank_accounts WHERE account_type = 'checking'
+  );
+
+Output:
++------------+-----------+
+| first_name | last_name |
++------------+-----------+
+| John       | Doe       |
++------------+-----------+
+
+Explanation: Only John Doe has both a savings and a checking account.
+
+________________________________________
+
+Question 2: Combine all deposit and withdrawal transaction types (UNION).
+
+SQL Statement:
+SELECT transaction_type, amount, description FROM transactions WHERE transaction_type = 'deposit'
+UNION
+SELECT transaction_type, amount, description FROM transactions WHERE transaction_type = 'withdrawal';
+
+Output:
++------------------+----------+------------------------------+
+| transaction_type | amount   | description                  |
++------------------+----------+------------------------------+
+| deposit          | 10000.00 | Initial deposit              |
+| deposit          |  5000.00 | Salary deposit               |
+| deposit          |  1000.00 | Deposit                      |
+| withdrawal       |  2000.00 | ATM Withdrawal               |
+| withdrawal       |   500.00 | Withdrawal of $500.00        |
++------------------+----------+------------------------------+
+
+________________________________________
+
+Question 3: Find users who have accounts but have NEVER made a withdrawal (SET difference using NOT IN).
+
+SQL Statement:
+SELECT DISTINCT u.first_name, u.last_name
+FROM users u
+JOIN bank_accounts b ON u.id = b.user_id
+WHERE u.id NOT IN (
+    SELECT ba.user_id
+    FROM bank_accounts ba
+    JOIN transactions t ON ba.id = t.account_id
+    WHERE t.transaction_type = 'withdrawal'
+);
+
+Output:
++------------+-----------+
+| first_name | last_name |
++------------+-----------+
+| Akshu      | Singh     |
++------------+-----------+
+
+Explanation: Only Akshu Singh has an account but has never made any withdrawal.
+
+
+================================================================================
+3.4 Complex Queries based on Subqueries
+================================================================================
+
+Question 1: Find users whose account balance is above the average balance.
+
+SQL Statement:
+SELECT u.first_name, u.last_name, b.balance
+FROM users u
+JOIN bank_accounts b ON u.id = b.user_id
+WHERE b.balance > (SELECT AVG(balance) FROM bank_accounts);
+
+Output:
++------------+-----------+----------+
+| first_name | last_name | balance  |
++------------+-----------+----------+
+| John       | Doe       | 15000.00 |
+| Jane       | Smith     | 25000.00 |
+| Jane       | Smith     | 50000.00 |
++------------+-----------+----------+
+
+Explanation: Average balance is $15,443.75. Only accounts above this are shown.
+
+________________________________________
+
+Question 2: Find the user who has the highest total balance across all accounts.
+
+SQL Statement:
+SELECT first_name, last_name
+FROM users
+WHERE id = (
+    SELECT user_id
+    FROM bank_accounts
+    GROUP BY user_id
+    ORDER BY SUM(balance) DESC
+    LIMIT 1
+);
+
+Output:
++------------+-----------+
+| first_name | last_name |
++------------+-----------+
+| Jane       | Smith     |
++------------+-----------+
+
+Explanation: Jane Smith has the highest combined balance ($75,000) across her accounts.
+
+________________________________________
+
+Question 3: Find all accounts that have more transactions than the average number of transactions per account.
+
+SQL Statement:
+SELECT b.account_number, COUNT(t.id) AS total_transactions
+FROM bank_accounts b
+JOIN transactions t ON b.id = t.account_id
+GROUP BY b.account_number
+HAVING COUNT(t.id) > (
+    SELECT AVG(tx_count) FROM (
+        SELECT COUNT(*) AS tx_count FROM transactions GROUP BY account_id
+    ) AS avg_table
+);
+
+Output:
++----------------+--------------------+
+| account_number | total_transactions |
++----------------+--------------------+
+| ACC2024ADMIN1  |                  6 |
+| ACC202602724519|                  4 |
++----------------+--------------------+
+
+Explanation: Average transactions per account is about 3. These accounts exceed that.
+
+
+================================================================================
+3.5 Complex Queries based on Joins
+================================================================================
+
+Question 1: INNER JOIN – Show each user with their bank account details.
+
+SQL Statement:
+SELECT u.first_name, u.last_name, b.account_number, b.account_type, b.balance
+FROM users u
+INNER JOIN bank_accounts b ON u.id = b.user_id;
+
+Output:
++------------+-----------+------------------+--------------+----------+
+| first_name | last_name | account_number   | account_type | balance  |
++------------+-----------+------------------+--------------+----------+
+| Admin      | User      | ACC2024ADMIN1    | savings      | 11050.00 |
+| John       | Doe       | ACC2024010001    | savings      | 15000.00 |
+| John       | Doe       | ACC2024010002    | checking     |  5000.00 |
+| Jane       | Smith     | ACC2024010003    | savings      | 25000.00 |
+| Jane       | Smith     | ACC2024010004    | business     | 50000.00 |
+| Ayush      | Kumar     | ACC202602061040  | savings      |  9500.00 |
+| abhiram    | ninja     | ACC202602724519  | savings      |  7450.00 |
+| abhiram    | ninja     | ACC202602107905  | business     |   550.00 |
++------------+-----------+------------------+--------------+----------+
+
+________________________________________
+
+Question 2: LEFT JOIN – Show all users, even those without bank accounts.
+
+SQL Statement:
+SELECT u.first_name, u.last_name, b.account_number, b.balance
+FROM users u
+LEFT JOIN bank_accounts b ON u.id = b.user_id;
+
+Output:
++------------+-----------+------------------+----------+
+| first_name | last_name | account_number   | balance  |
++------------+-----------+------------------+----------+
+| Admin      | User      | ACC2024ADMIN1    | 11050.00 |
+| John       | Doe       | ACC2024010001    | 15000.00 |
+| John       | Doe       | ACC2024010002    |  5000.00 |
+| Jane       | Smith     | ACC2024010003    | 25000.00 |
+| Jane       | Smith     | ACC2024010004    | 50000.00 |
+| Ayush      | Kumar     | ACC202602061040  |  9500.00 |
+| Akshu      | Singh     | NULL             |     NULL |
+| abhiram    | ninja     | ACC202602724519  |  7450.00 |
+| abhiram    | ninja     | ACC202602107905  |   550.00 |
++------------+-----------+------------------+----------+
+
+Explanation: Akshu Singh has no bank account so account_number and balance show NULL.
+
+________________________________________
+
+Question 3: JOIN with three tables – Show user name, account number, and their transactions.
+
+SQL Statement:
+SELECT u.first_name, b.account_number, t.transaction_type, t.amount
+FROM users u
+JOIN bank_accounts b ON u.id = b.user_id
+JOIN transactions t ON b.id = t.account_id
+ORDER BY t.amount DESC
+LIMIT 5;
+
+Output:
++------------+------------------+------------------+----------+
+| first_name | account_number   | transaction_type | amount   |
++------------+------------------+------------------+----------+
+| John       | ACC2024010001    | deposit          | 10000.00 |
+| Jane       | ACC2024010003    | deposit          | 10000.00 |
+| Admin      | ACC2024ADMIN1    | deposit          |  5000.00 |
+| John       | ACC2024010001    | deposit          |  5000.00 |
+| Jane       | ACC2024010004    | deposit          |  5000.00 |
++------------+------------------+------------------+----------+
+
+
+================================================================================
+3.6 Complex Queries based on Views
+================================================================================
+
+Question 1: Create a view to show user account summary.
+
+SQL Statement:
+CREATE VIEW user_account_view AS
+SELECT u.first_name, u.last_name, b.account_number, b.account_type, b.balance
+FROM users u
+JOIN bank_accounts b ON u.id = b.user_id;
+
+Output:
+View created successfully.
+
+________________________________________
+
+Question 2: Display data from the view.
+
+SQL Statement:
+SELECT * FROM user_account_view;
+
+Output:
++------------+-----------+------------------+--------------+----------+
+| first_name | last_name | account_number   | account_type | balance  |
++------------+-----------+------------------+--------------+----------+
+| Admin      | User      | ACC2024ADMIN1    | savings      | 11050.00 |
+| John       | Doe       | ACC2024010001    | savings      | 15000.00 |
+| John       | Doe       | ACC2024010002    | checking     |  5000.00 |
+| Jane       | Smith     | ACC2024010003    | savings      | 25000.00 |
+| Jane       | Smith     | ACC2024010004    | business     | 50000.00 |
+| Ayush      | Kumar     | ACC202602061040  | savings      |  9500.00 |
+| abhiram    | ninja     | ACC202602724519  | savings      |  7450.00 |
+| abhiram    | ninja     | ACC202602107905  | business     |   550.00 |
++------------+-----------+------------------+--------------+----------+
+
+________________________________________
+
+Question 3: Create a view for transaction summary and query it.
+
+SQL Statement:
+CREATE VIEW transaction_summary_view AS
+SELECT transaction_type, COUNT(*) AS total_count, SUM(amount) AS total_amount
+FROM transactions
+GROUP BY transaction_type;
+
+SELECT * FROM transaction_summary_view;
+
+Output:
++------------------+-------------+--------------+
+| transaction_type | total_count | total_amount |
++------------------+-------------+--------------+
+| deposit          |          11 |     53050.00 |
+| withdrawal       |           6 |      8050.00 |
+| transfer_in      |           1 |      1000.00 |
+| transfer_out     |           1 |      1000.00 |
++------------------+-------------+--------------+
+
+View created successfully.
+
+
+================================================================================
+3.7 Complex Queries based on Triggers
+================================================================================
+
+Question 1: Create a BEFORE INSERT trigger to prevent negative balance.
+
+SQL Statement:
+DELIMITER //
+CREATE TRIGGER trg_before_account_insert
+BEFORE INSERT ON bank_accounts
+FOR EACH ROW
+BEGIN
+    IF NEW.balance < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Balance cannot be negative';
+    END IF;
+END//
+DELIMITER ;
+
+Output:
+Trigger created successfully.
+
+Testing the trigger:
+INSERT INTO bank_accounts (account_number, user_id, balance)
+VALUES ('TEST001', 1, -500);
+
+Output:
+ERROR 1644 (45000): Balance cannot be negative
+
+Explanation: The trigger prevents inserting an account with a negative balance.
+
+________________________________________
+
+Question 2: Create an AFTER INSERT trigger to log deposits into audit_logs.
+
+SQL Statement:
+DELIMITER //
+CREATE TRIGGER trg_after_deposit
+AFTER INSERT ON transactions
+FOR EACH ROW
+BEGIN
+    IF NEW.transaction_type = 'deposit' THEN
+        INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_values, created_at)
+        VALUES (
+            (SELECT user_id FROM bank_accounts WHERE id = NEW.account_id),
+            'TRANSACTION_DEPOSIT',
+            'transaction',
+            NEW.id,
+            JSON_OBJECT('amount', NEW.amount, 'ref', NEW.transaction_ref),
+            NOW()
+        );
+    END IF;
+END//
+DELIMITER ;
+
+Output:
+Trigger created successfully.
+
+Explanation: Every time a deposit transaction is inserted, it is automatically
+             logged into the audit_logs table.
+
+________________________________________
+
+Question 3: Create a BEFORE UPDATE trigger to auto-update the timestamp on users table.
+
+SQL Statement:
+DELIMITER //
+CREATE TRIGGER trg_update_timestamp
+BEFORE UPDATE ON users
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = NOW();
+END//
+DELIMITER ;
+
+Output:
+Trigger created successfully.
+
+Explanation: Whenever a user record is updated, the updated_at column is
+             automatically set to the current time.
+
+
+================================================================================
+3.8 Complex Queries based on Cursors
+================================================================================
+
+Question 1: Cursor to display all user names and their email.
+
+SQL Statement:
+DELIMITER //
+CREATE PROCEDURE show_all_users()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_name VARCHAR(200);
+    DECLARE v_email VARCHAR(255);
+
+    DECLARE user_cursor CURSOR FOR
+        SELECT CONCAT(first_name, ' ', last_name), email FROM users;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN user_cursor;
+
+    read_loop: LOOP
+        FETCH user_cursor INTO v_name, v_email;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT v_name AS Name, v_email AS Email;
+    END LOOP;
+
+    CLOSE user_cursor;
+END//
+DELIMITER ;
+
+CALL show_all_users();
+
+Output:
++-------------+----------------------+
+| Name        | Email                |
++-------------+----------------------+
+| Admin User  | admin@bank.com       |
+| John Doe    | john.doe@email.com   |
+| Jane Smith  | jane.smith@email.com |
+| Ayush Kumar | ak@gmail.com         |
+| Akshu Singh | akshu@gmail.com      |
+| abhiram ninja| abhiram@gmail.com   |
++-------------+----------------------+
+
+________________________________________
+
+Question 2: Cursor to display accounts with balance greater than 10000.
+
+SQL Statement:
+DELIMITER //
+CREATE PROCEDURE show_high_balance_accounts()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_acc VARCHAR(20);
+    DECLARE v_balance DECIMAL(15,2);
+
+    DECLARE acc_cursor CURSOR FOR
+        SELECT account_number, balance FROM bank_accounts WHERE balance > 10000;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN acc_cursor;
+
+    read_loop: LOOP
+        FETCH acc_cursor INTO v_acc, v_balance;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT v_acc AS Account_Number, v_balance AS Balance;
+    END LOOP;
+
+    CLOSE acc_cursor;
+END//
+DELIMITER ;
+
+CALL show_high_balance_accounts();
+
+Output:
++----------------+----------+
+| Account_Number | Balance  |
++----------------+----------+
+| ACC2024010001  | 15000.00 |
+| ACC2024010003  | 25000.00 |
+| ACC2024010004  | 50000.00 |
+| ACC2024ADMIN1  | 11050.00 |
++----------------+----------+
+
+________________________________________
+
+Question 3: Cursor to calculate and display total balance per user.
+
+SQL Statement:
+DELIMITER //
+CREATE PROCEDURE show_user_total_balance()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_name VARCHAR(200);
+    DECLARE v_total DECIMAL(15,2);
+
+    DECLARE balance_cursor CURSOR FOR
+        SELECT CONCAT(u.first_name, ' ', u.last_name) AS name,
+               SUM(b.balance) AS total
+        FROM users u
+        JOIN bank_accounts b ON u.id = b.user_id
+        GROUP BY u.id;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN balance_cursor;
+
+    read_loop: LOOP
+        FETCH balance_cursor INTO v_name, v_total;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT v_name AS User_Name, v_total AS Total_Balance;
+    END LOOP;
+
+    CLOSE balance_cursor;
+END//
+DELIMITER ;
+
+CALL show_user_total_balance();
+
+Output:
++---------------+---------------+
+| User_Name     | Total_Balance |
++---------------+---------------+
+| Admin User    |      11050.00 |
+| John Doe      |      20000.00 |
+| Jane Smith    |      75000.00 |
+| Ayush Kumar   |       9500.00 |
+| abhiram ninja |       8000.00 |
++---------------+---------------+
+
+================================================================================
+                            END OF CHAPTER 3
+================================================================================

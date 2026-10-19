@@ -1,0 +1,436 @@
+
+============================================================
+Q: 3.1.1 Show all constraints on bank_accounts table
+============================================================
+SQL:
+SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='bank_accounts' AND TABLE_SCHEMA=DATABASE()
+------------------------------------------------------------
+CONSTRAINT_NAME | CONSTRAINT_TYPE
+--------------------------------------
+account_number | UNIQUE
+PRIMARY | PRIMARY KEY
+bank_accounts_ibfk_1 | FOREIGN KEY
+(3 rows)
+
+
+============================================================
+Q: 3.1.2 Show all NOT NULL and UNIQUE columns in users table
+============================================================
+SQL:
+SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_KEY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='users' AND TABLE_SCHEMA=DATABASE() AND (IS_NULLABLE='NO' OR COLUMN_KEY='UNI')
+------------------------------------------------------------
+COLUMN_NAME | IS_NULLABLE | COLUMN_KEY
+-------------------------------------------
+id | NO | PRI
+email | NO | UNI
+password_hash | NO | 
+first_name | NO | 
+last_name | NO | 
+role_id | NO | MUL
+(6 rows)
+
+
+============================================================
+Q: 3.1.3 Show all FOREIGN KEY relationships in the database
+============================================================
+SQL:
+SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL
+ORDER BY TABLE_NAME
+------------------------------------------------------------
+TABLE_NAME | COLUMN_NAME | REFERENCED_TABLE_NAME | REFERENCED_COLUMN_NAME
+------------------------------------------------------------------------------
+audit_logs | user_id | users | id
+bank_accounts | user_id | users | id
+notifications | user_id | users | id
+transactions | account_id | bank_accounts | id
+transactions | related_account_id | bank_accounts | id
+users | role_id | roles | id
+(6 rows)
+
+
+============================================================
+Q: 3.2.1 Count total users, accounts, and transactions
+============================================================
+SQL:
+SELECT 
+    (SELECT COUNT(*) FROM users) AS total_users,
+    (SELECT COUNT(*) FROM bank_accounts) AS total_accounts,
+    (SELECT COUNT(*) FROM transactions) AS total_transactions
+------------------------------------------------------------
+total_users | total_accounts | total_transactions
+------------------------------------------------------
+6 | 8 | 19
+(1 rows)
+
+
+============================================================
+Q: 3.2.2 Find total, average, max, and min balance across all accounts
+============================================================
+SQL:
+SELECT COUNT(*) AS total_accounts,
+       SUM(balance) AS total_balance,
+       ROUND(AVG(balance),2) AS avg_balance,
+       MAX(balance) AS highest_balance,
+       MIN(balance) AS lowest_balance
+FROM bank_accounts
+------------------------------------------------------------
+total_accounts | total_balance | avg_balance | highest_balance | lowest_balance
+------------------------------------------------------------------------------------
+8 | 123550.00 | 15443.75 | 50000.00 | 550.00
+(1 rows)
+
+
+============================================================
+Q: 3.2.3 Count number of accounts per account type
+============================================================
+SQL:
+SELECT account_type, COUNT(*) AS num_accounts, SUM(balance) AS total_balance
+FROM bank_accounts
+GROUP BY account_type
+------------------------------------------------------------
+account_type | num_accounts | total_balance
+------------------------------------------------
+savings | 5 | 68000.00
+checking | 1 | 5000.00
+business | 2 | 50550.00
+(3 rows)
+
+
+============================================================
+Q: 3.3.1 UNION - List all admin users and users who own business accounts
+============================================================
+SQL:
+SELECT u.id, CONCAT(u.first_name,' ',u.last_name) AS name, 'Admin' AS reason
+FROM users u WHERE u.role_id = 1
+UNION
+SELECT u.id, CONCAT(u.first_name,' ',u.last_name), 'Business Account Owner'
+FROM users u JOIN bank_accounts ba ON u.id = ba.user_id
+WHERE ba.account_type = 'business'
+------------------------------------------------------------
+id | name | reason
+-----------------------
+1 | Admin User | Admin
+3 | Jane Smith | Business Account Owner
+6 | abhiram ninja | Business Account Owner
+(3 rows)
+
+
+============================================================
+Q: 3.3.2 Find users who made both deposits and withdrawals
+============================================================
+SQL:
+SELECT DISTINCT u.id, CONCAT(u.first_name,' ',u.last_name) AS name
+FROM users u
+WHERE u.id IN (
+    SELECT ba.user_id FROM bank_accounts ba
+    JOIN transactions t ON ba.id = t.account_id WHERE t.transaction_type = 'deposit'
+)
+AND u.id IN (
+    SELECT ba.user_id FROM bank_accounts ba
+    JOIN transactions t ON ba.id = t.account_id WHERE t.transaction_type = 'withdrawal'
+)
+------------------------------------------------------------
+id | name
+--------------
+1 | Admin User
+2 | John Doe
+4 | Ayush Kumar
+6 | abhiram ninja
+(4 rows)
+
+
+============================================================
+Q: 3.3.3 Find users who have accounts but never made a transaction
+============================================================
+SQL:
+SELECT u.id, CONCAT(u.first_name,' ',u.last_name) AS name
+FROM users u
+WHERE u.id IN (SELECT user_id FROM bank_accounts)
+AND u.id NOT IN (
+    SELECT DISTINCT ba.user_id FROM bank_accounts ba
+    JOIN transactions t ON ba.id = t.account_id
+)
+------------------------------------------------------------
+id | name
+--------------
+(0 rows)
+
+
+============================================================
+Q: 3.4.1 Find accounts with balance greater than average
+============================================================
+SQL:
+SELECT account_number, account_type, balance
+FROM bank_accounts
+WHERE balance > (SELECT AVG(balance) FROM bank_accounts)
+ORDER BY balance DESC
+------------------------------------------------------------
+account_number | account_type | balance
+--------------------------------------------
+ACC2024010004 | business | 50000.00
+ACC2024010003 | savings | 25000.00
+(2 rows)
+
+
+============================================================
+Q: 3.4.2 Find the user with the highest total balance
+============================================================
+SQL:
+SELECT CONCAT(u.first_name,' ',u.last_name) AS name, sub.total_balance
+FROM users u
+JOIN (
+    SELECT user_id, SUM(balance) AS total_balance
+    FROM bank_accounts GROUP BY user_id
+    ORDER BY total_balance DESC LIMIT 1
+) sub ON u.id = sub.user_id
+------------------------------------------------------------
+name | total_balance
+-------------------------
+Jane Smith | 75000.00
+(1 rows)
+
+
+============================================================
+Q: 3.4.3 Find the latest transaction for each account
+============================================================
+SQL:
+SELECT ba.account_number, t.transaction_type, t.amount, t.created_at
+FROM transactions t
+JOIN bank_accounts ba ON t.account_id = ba.id
+WHERE t.id = (
+    SELECT MAX(t2.id) FROM transactions t2 WHERE t2.account_id = t.account_id
+)
+ORDER BY t.created_at DESC
+------------------------------------------------------------
+account_number | transaction_type | amount | created_at
+------------------------------------------------------------
+ACC202602724519 | transfer_out | 550.00 | 2026-02-13 04:06:45
+ACC202602107905 | transfer_in | 550.00 | 2026-02-13 04:06:45
+ACC202602061040 | deposit | 1500.00 | 2026-02-07 18:54:45
+ACC2024ADMIN1 | deposit | 50.00 | 2026-02-07 18:53:51
+ACC2024010002 | deposit | 3000.00 | 2026-02-07 16:04:50
+ACC2024010003 | deposit | 10000.00 | 2026-02-07 16:04:50
+ACC2024010001 | withdrawal | 500.00 | 2026-02-07 16:04:50
+(7 rows)
+
+
+============================================================
+Q: 3.5.1 INNER JOIN - Show each user with their accounts
+============================================================
+SQL:
+SELECT u.id, CONCAT(u.first_name,' ',u.last_name) AS name,
+       ba.account_number, ba.account_type, ba.balance
+FROM users u
+INNER JOIN bank_accounts ba ON u.id = ba.user_id
+ORDER BY u.id
+------------------------------------------------------------
+id | name | account_number | account_type | balance
+--------------------------------------------------------
+1 | Admin User | ACC2024ADMIN1 | savings | 11050.00
+2 | John Doe | ACC2024010001 | savings | 15000.00
+2 | John Doe | ACC2024010002 | checking | 5000.00
+3 | Jane Smith | ACC2024010003 | savings | 25000.00
+3 | Jane Smith | ACC2024010004 | business | 50000.00
+4 | Ayush Kumar | ACC202602061040 | savings | 9500.00
+6 | abhiram ninja | ACC202602724519 | savings | 7450.00
+6 | abhiram ninja | ACC202602107905 | business | 550.00
+(8 rows)
+
+
+============================================================
+Q: 3.5.2 LEFT JOIN - Show all users including those without accounts
+============================================================
+SQL:
+SELECT u.id, CONCAT(u.first_name,' ',u.last_name) AS name,
+       COALESCE(ba.account_number,'No Account') AS account_number,
+       COALESCE(ba.balance, 0) AS balance
+FROM users u
+LEFT JOIN bank_accounts ba ON u.id = ba.user_id
+ORDER BY u.id
+------------------------------------------------------------
+id | name | account_number | balance
+-----------------------------------------
+1 | Admin User | ACC2024ADMIN1 | 11050.00
+2 | John Doe | ACC2024010001 | 15000.00
+2 | John Doe | ACC2024010002 | 5000.00
+3 | Jane Smith | ACC2024010003 | 25000.00
+3 | Jane Smith | ACC2024010004 | 50000.00
+4 | Ayush Kumar | ACC202602061040 | 9500.00
+5 | Akshu Singh | No Account | 0.00
+6 | abhiram ninja | ACC202602724519 | 7450.00
+6 | abhiram ninja | ACC202602107905 | 550.00
+(9 rows)
+
+
+============================================================
+Q: 3.5.3 JOIN three tables - Show transactions with user and account info
+============================================================
+SQL:
+SELECT CONCAT(u.first_name,' ',u.last_name) AS user_name,
+       ba.account_number, t.transaction_type, t.amount, t.created_at
+FROM transactions t
+JOIN bank_accounts ba ON t.account_id = ba.id
+JOIN users u ON ba.user_id = u.id
+ORDER BY t.created_at DESC LIMIT 5
+------------------------------------------------------------
+user_name | account_number | transaction_type | amount | created_at
+------------------------------------------------------------------------
+abhiram ninja | ACC202602724519 | transfer_out | 550.00 | 2026-02-13 04:06:45
+abhiram ninja | ACC202602107905 | transfer_in | 550.00 | 2026-02-13 04:06:45
+abhiram ninja | ACC202602724519 | withdrawal | 2000.00 | 2026-02-13 03:38:24
+abhiram ninja | ACC202602724519 | deposit | 10000.00 | 2026-02-13 03:37:48
+Admin User | ACC2024ADMIN1 | deposit | 5000.00 | 2026-02-07 23:11:31
+(5 rows)
+
+
+============================================================
+Q: 3.6.1 Query the user accounts view
+============================================================
+SQL:
+SELECT * FROM vw_user_accounts ORDER BY balance DESC
+------------------------------------------------------------
+user_id | full_name | email | account_number | account_type | balance
+--------------------------------------------------------------------------
+3 | Jane Smith | jane.smith@email.com | ACC2024010004 | business | 50000.00
+3 | Jane Smith | jane.smith@email.com | ACC2024010003 | savings | 25000.00
+2 | John Doe | john.doe@email.com | ACC2024010001 | savings | 15000.00
+1 | Admin User | admin@bank.com | ACC2024ADMIN1 | savings | 11050.00
+4 | Ayush Kumar | ak@gmail.com | ACC202602061040 | savings | 9500.00
+6 | abhiram ninja | abhiram@gmail.com | ACC202602724519 | savings | 7450.00
+2 | John Doe | john.doe@email.com | ACC2024010002 | checking | 5000.00
+6 | abhiram ninja | abhiram@gmail.com | ACC202602107905 | business | 550.00
+(8 rows)
+
+
+============================================================
+Q: 3.6.2 Query the transaction summary view
+============================================================
+SQL:
+SELECT * FROM vw_transaction_summary ORDER BY total_amount DESC
+------------------------------------------------------------
+transaction_type | total_count | total_amount | avg_amount
+---------------------------------------------------------------
+deposit | 11 | 48130.00 | 4375.45
+withdrawal | 6 | 8080.00 | 1346.67
+transfer_in | 1 | 550.00 | 550.00
+transfer_out | 1 | 550.00 | 550.00
+(4 rows)
+
+
+============================================================
+Q: 3.6.3 Query the recent activity view
+============================================================
+SQL:
+SELECT * FROM vw_recent_activity ORDER BY created_at DESC LIMIT 5
+------------------------------------------------------------
+user_name | action | entity_type | created_at
+--------------------------------------------------
+Admin User | USER_LOGIN | user | 2026-03-21 19:10:00
+Admin User | USER_LOGIN_FAILED | user | 2026-03-21 19:09:43
+Admin User | USER_LOGIN_FAILED | user | 2026-03-21 19:09:27
+Admin User | USER_LOGOUT | user | 2026-03-21 19:09:06
+Admin User | USER_LOGIN | user | 2026-03-16 16:59:59
+(5 rows)
+
+
+============================================================
+Q: 3.7.1 Show all triggers in the database
+============================================================
+SQL:
+SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_TIMING
+FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE TRIGGER_SCHEMA=DATABASE()
+ORDER BY EVENT_OBJECT_TABLE
+------------------------------------------------------------
+TRIGGER_NAME | EVENT_MANIPULATION | EVENT_OBJECT_TABLE | ACTION_TIMING
+---------------------------------------------------------------------------
+trg_before_account_insert | INSERT | bank_accounts | BEFORE
+trg_before_account_update_balance | UPDATE | bank_accounts | BEFORE
+(2 rows)
+
+============================================================
+Q: 3.7.2 Test the negative balance trigger
+============================================================
+SQL:
+INSERT INTO bank_accounts (account_number, user_id, balance)
+VALUES ('TRIGGER_TEST', 1, -100.00);
+------------------------------------------------------------
+ERROR 1644 (45000): Balance cannot be negative
+(Trigger blocked the insert as expected)
+
+
+============================================================
+Q: 3.7.3 View audit logs generated by triggers
+============================================================
+SQL:
+SELECT id, action, entity_type, created_at
+FROM audit_logs
+ORDER BY created_at DESC LIMIT 5
+------------------------------------------------------------
+id | action | entity_type | created_at
+-------------------------------------------
+58 | USER_LOGIN | user | 2026-03-21 19:10:00
+57 | USER_LOGIN_FAILED | user | 2026-03-21 19:09:43
+56 | USER_LOGIN_FAILED | user | 2026-03-21 19:09:27
+55 | USER_LOGOUT | user | 2026-03-21 19:09:06
+54 | USER_LOGIN | user | 2026-03-16 16:59:59
+(5 rows)
+
+
+============================================================
+Q: 3.8.1 Cursor - Classify accounts by balance (HIGH/MEDIUM/LOW)
+============================================================
+SQL:
+CALL sp_classify_accounts()
+------------------------------------------------------------
+account_number | balance | category
+----------------------------------------
+ACC2024010004 | 50000.00 | HIGH
+ACC2024010003 | 25000.00 | HIGH
+ACC2024010001 | 15000.00 | MEDIUM
+ACC2024ADMIN1 | 11050.00 | MEDIUM
+ACC202602061040 | 9500.00 | MEDIUM
+ACC202602724519 | 7450.00 | MEDIUM
+ACC2024010002 | 5000.00 | MEDIUM
+ACC202602107905 | 550.00 | LOW
+(8 rows)
+
+
+============================================================
+Q: 3.8.2 Cursor - Calculate total balance per user
+============================================================
+SQL:
+CALL sp_total_by_user()
+------------------------------------------------------------
+user_id | user_name | total_balance
+----------------------------------------
+3 | Jane Smith | 75000.00
+2 | John Doe | 20000.00
+1 | Admin User | 11050.00
+4 | Ayush Kumar | 9500.00
+6 | abhiram ninja | 8000.00
+(5 rows)
+
+
+============================================================
+Q: 3.8.3 Cursor - Count transactions per account
+============================================================
+SQL:
+CALL sp_count_transactions()
+------------------------------------------------------------
+account_number | transaction_count
+---------------------------------------
+ACC202602061040 | 7
+ACC2024ADMIN1 | 4
+ACC202602724519 | 3
+ACC2024010001 | 2
+ACC2024010002 | 1
+ACC2024010003 | 1
+ACC202602107905 | 1
+ACC2024010004 | 0
+(8 rows)
+
+
+All queries executed!

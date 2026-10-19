@@ -1,0 +1,519 @@
+                                    CHAPTER 4
+
+        ANALYZING THE PITFALLS, IDENTIFYING THE
+        DEPENDENCIES, AND APPLYING NORMALIZATIONS
+
+
+================================================================================
+4.1 Analyse the Pitfalls in Relations
+================================================================================
+
+Consider an UNNORMALIZED table called "bank_data" that stores all bank
+information in a single flat table:
+
+Table: bank_data (UNNORMALIZED)
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+------------------+----------+--------+
+| id | first_name | last_name | email               | role_name | account_no   | acc_type | balance   | txn_ref | txn_type         | amount   | phone  |
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+------------------+----------+--------+
+| 1  | Admin      | User      | admin@bank.com      | admin     | ACC2024ADMIN1| savings  | 11050.00  | TXN001  | deposit          | 5000.00  | 999001 |
+| 1  | Admin      | User      | admin@bank.com      | admin     | ACC2024ADMIN1| savings  | 11050.00  | TXN002  | withdrawal       | 1000.00  | 999001 |
+| 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010001| savings  | 15000.00  | TXN003  | deposit          | 10000.00 | 999002 |
+| 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010002| checking | 5000.00   | TXN004  | deposit          | 5000.00  | 999002 |
+| 3  | Jane       | Smith     | jane.smith@email.com| customer  | ACC2024010003| savings  | 25000.00  | TXN005  | deposit          | 10000.00 | 999003 |
+| 3  | Jane       | Smith     | jane.smith@email.com| customer  | ACC2024010004| business | 50000.00  | TXN006  | deposit          | 5000.00  | 999003 |
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+------------------+----------+--------+
+
+Pitfalls (Anomalies) identified in this table:
+
+1. INSERTION ANOMALY:
+   - We cannot add a new user unless they have a bank account and a transaction.
+   - Example: If "Akshu Singh" registers but has no account yet, we cannot
+     insert the record because account_no and txn_ref would be NULL.
+
+2. DELETION ANOMALY:
+   - If we delete the only transaction of a user, we lose the user's
+     personal information (name, email, phone) as well.
+   - Example: Deleting TXN001 would remove Admin User's information entirely
+     if it was their only record.
+
+3. UPDATE ANOMALY:
+   - If John Doe changes his email, we must update it in EVERY row where
+     John appears (multiple rows for multiple accounts/transactions).
+   - If we miss updating even one row, the data becomes inconsistent.
+
+4. DATA REDUNDANCY:
+   - User details (first_name, last_name, email, phone) are repeated for
+     every transaction. This wastes storage and increases chance of errors.
+   - John Doe's name and email appear in row 3 AND row 4.
+
+Solution: Apply Normalization step by step (1NF → 2NF → 3NF → BCNF → 4NF → 5NF)
+
+
+================================================================================
+4.2 First Normal Form (1NF)
+================================================================================
+
+4.2.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for 1NF:
+  - Each column must contain only ATOMIC (single) values.
+  - No repeating groups or arrays in any column.
+  - Each row must be uniquely identifiable.
+
+In our unnormalized table, the problem is:
+  - A single user can have MULTIPLE accounts and MULTIPLE transactions
+    stored in the same conceptual "row", leading to repeating groups.
+
+4.2.2: Apply Normalization to 1NF
+------------------------------------------------------------------------
+
+To convert to 1NF, we ensure:
+  - Every cell has a single value (no lists or arrays).
+  - We add a proper PRIMARY KEY to identify each row uniquely.
+
+BEFORE (Unnormalized - repeating groups):
++----+------------+-----------+-------------------------------+--------------+----------+
+| id | first_name | last_name | accounts                      | transactions | phones   |
++----+------------+-----------+-------------------------------+--------------+----------+
+| 1  | Admin      | User      | ACC2024ADMIN1                 | TXN001,TXN002| 999001   |
+| 2  | John       | Doe       | ACC2024010001, ACC2024010002   | TXN003,TXN004| 999002   |
+| 3  | Jane       | Smith     | ACC2024010003, ACC2024010004   | TXN005,TXN006| 999003   |
++----+------------+-----------+-------------------------------+--------------+----------+
+
+AFTER (1NF - each cell has atomic values, each row is unique):
++-----+----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+| row | id | first_name | last_name | email               | role_name | account_no   | acc_type | balance   | txn_ref | txn_type | amount   |
++-----+----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+|  1  | 1  | Admin      | User      | admin@bank.com      | admin     | ACC2024ADMIN1| savings  | 11050.00  | TXN001  | deposit  | 5000.00  |
+|  2  | 1  | Admin      | User      | admin@bank.com      | admin     | ACC2024ADMIN1| savings  | 11050.00  | TXN002  | withdraw | 1000.00  |
+|  3  | 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010001| savings  | 15000.00  | TXN003  | deposit  | 10000.00 |
+|  4  | 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010002| checking | 5000.00   | TXN004  | deposit  | 5000.00  |
+|  5  | 3  | Jane       | Smith     | jane.smith@email.com| customer  | ACC2024010003| savings  | 25000.00  | TXN005  | deposit  | 10000.00 |
+|  6  | 3  | Jane       | Smith     | jane.smith@email.com| customer  | ACC2024010004| business | 50000.00  | TXN006  | deposit  | 5000.00  |
++-----+----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+
+Primary Key: txn_ref (each transaction reference is unique)
+
+Result: Table is now in 1NF. Each cell contains only one value.
+        But there is still redundancy (user details repeat).
+
+
+================================================================================
+4.3 Second Normal Form (2NF)
+================================================================================
+
+4.3.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for 2NF:
+  - Table must already be in 1NF.
+  - Remove PARTIAL DEPENDENCIES (non-key columns must depend on the
+    ENTIRE primary key, not just a part of it).
+
+In the 1NF table:
+  Composite Key: (id, account_no, txn_ref)
+
+  Partial Dependencies found:
+  - first_name, last_name, email, role_name → depend ONLY on "id" (user)
+  - acc_type, balance → depend ONLY on "account_no"
+  - txn_type, amount → depend ONLY on "txn_ref"
+
+  These are partial dependencies because they don't depend on the full key.
+
+4.3.2: Apply Normalization to 2NF
+------------------------------------------------------------------------
+
+We split the table to remove partial dependencies:
+
+BEFORE (1NF - single table with partial dependencies):
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+| id | first_name | last_name | email               | role_name | account_no   | acc_type | balance   | txn_ref | txn_type | amount   |
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+| 1  | Admin      | User      | admin@bank.com      | admin     | ACC2024ADMIN1| savings  | 11050.00  | TXN001  | deposit  | 5000.00  |
+| 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010001| savings  | 15000.00  | TXN003  | deposit  | 10000.00 |
+| 2  | John       | Doe       | john.doe@email.com  | customer  | ACC2024010002| checking | 5000.00   | TXN004  | deposit  | 5000.00  |
++----+------------+-----------+---------------------+-----------+--------------+----------+-----------+---------+----------+----------+
+
+AFTER (2NF - split into 3 tables):
+
+Table 1: users (depends on id)
++----+------------+-----------+---------------------+-----------+
+| id | first_name | last_name | email               | role_name |
++----+------------+-----------+---------------------+-----------+
+| 1  | Admin      | User      | admin@bank.com      | admin     |
+| 2  | John       | Doe       | john.doe@email.com  | customer  |
+| 3  | Jane       | Smith     | jane.smith@email.com| customer  |
++----+------------+-----------+---------------------+-----------+
+Primary Key: id
+
+Table 2: bank_accounts (depends on account_no)
++--------------+----------+-----------+---------+
+| account_no   | acc_type | balance   | user_id |
++--------------+----------+-----------+---------+
+| ACC2024ADMIN1| savings  | 11050.00  | 1       |
+| ACC2024010001| savings  | 15000.00  | 2       |
+| ACC2024010002| checking | 5000.00   | 2       |
+| ACC2024010003| savings  | 25000.00  | 3       |
+| ACC2024010004| business | 50000.00  | 3       |
++--------------+----------+-----------+---------+
+Primary Key: account_no
+Foreign Key: user_id → users(id)
+
+Table 3: transactions (depends on txn_ref)
++---------+--------------+----------+----------+
+| txn_ref | account_no   | txn_type | amount   |
++---------+--------------+----------+----------+
+| TXN001  | ACC2024ADMIN1| deposit  | 5000.00  |
+| TXN002  | ACC2024ADMIN1| withdraw | 1000.00  |
+| TXN003  | ACC2024010001| deposit  | 10000.00 |
+| TXN004  | ACC2024010002| deposit  | 5000.00  |
+| TXN005  | ACC2024010003| deposit  | 10000.00 |
+| TXN006  | ACC2024010004| deposit  | 5000.00  |
++---------+--------------+----------+----------+
+Primary Key: txn_ref
+Foreign Key: account_no → bank_accounts(account_no)
+
+Result: No partial dependencies remain. Each non-key column depends on the
+        full primary key of its table.
+
+
+================================================================================
+4.4 Third Normal Form (3NF)
+================================================================================
+
+4.4.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for 3NF:
+  - Table must already be in 2NF.
+  - Remove TRANSITIVE DEPENDENCIES (non-key columns must NOT depend on
+    other non-key columns).
+
+In the 2NF "users" table:
+  id → role_name
+
+  But what does role_name represent? It is actually a separate entity.
+  If we store role_name directly, and later want to add a role_description,
+  we would have a transitive dependency:
+
+  id → role_name → role_description
+
+  This is a transitive dependency: role_description depends on role_name,
+  which depends on id. role_description does NOT directly depend on id.
+
+4.4.2: Apply Normalization to 3NF
+------------------------------------------------------------------------
+
+We extract the transitive dependency into a new table.
+
+BEFORE (2NF - users table has transitive dependency):
++----+------------+-----------+---------------------+-----------+---------------------------+
+| id | first_name | last_name | email               | role_name | role_description          |
++----+------------+-----------+---------------------+-----------+---------------------------+
+| 1  | Admin      | User      | admin@bank.com      | admin     | System administrator      |
+| 2  | John       | Doe       | john.doe@email.com  | customer  | Regular bank customer     |
+| 3  | Jane       | Smith     | jane.smith@email.com| customer  | Regular bank customer     |
+| 4  | Ayush      | Kumar     | ak@gmail.com        | customer  | Regular bank customer     |
++----+------------+-----------+---------------------+-----------+---------------------------+
+
+Transitive Dependency: id → role_name → role_description
+
+AFTER (3NF - separated into two tables):
+
+Table: roles
++---------+-----------+----------------------------------+
+| role_id | role_name | description                      |
++---------+-----------+----------------------------------+
+| 1       | admin     | System administrator with access |
+| 2       | customer  | Regular bank customer            |
++---------+-----------+----------------------------------+
+Primary Key: role_id
+
+Table: users
++----+------------+-----------+---------------------+---------+
+| id | first_name | last_name | email               | role_id |
++----+------------+-----------+---------------------+---------+
+| 1  | Admin      | User      | admin@bank.com      | 1       |
+| 2  | John       | Doe       | john.doe@email.com  | 2       |
+| 3  | Jane       | Smith     | jane.smith@email.com| 2       |
+| 4  | Ayush      | Kumar     | ak@gmail.com        | 2       |
++----+------------+-----------+---------------------+---------+
+Primary Key: id
+Foreign Key: role_id → roles(role_id)
+
+Result: No transitive dependencies remain. Every non-key column depends
+        ONLY on the primary key directly.
+
+
+================================================================================
+4.5 BCNF (Boyce-Codd Normal Form)
+================================================================================
+
+4.5.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for BCNF:
+  - Table must already be in 3NF.
+  - For EVERY functional dependency X → Y, X must be a SUPER KEY.
+  - In simple terms: every determinant must be a candidate key.
+
+Consider a scenario in our bank where we track which employee (staff)
+handles which account, and each employee works in only one branch:
+
+Table: account_handler (3NF but NOT BCNF)
++--------------+-------------+-------------+
+| account_no   | staff_name  | branch      |
++--------------+-------------+-------------+
+| ACC2024010001| Ravi        | Delhi       |
+| ACC2024010002| Ravi        | Delhi       |
+| ACC2024010003| Priya       | Mumbai      |
+| ACC2024010004| Priya       | Mumbai      |
+| ACC2024ADMIN1| Ravi        | Delhi       |
++--------------+-------------+-------------+
+
+Candidate Key: (account_no)
+Functional Dependencies:
+  - account_no → staff_name   (each account assigned to one staff)
+  - staff_name → branch       (each staff works in one branch)
+
+Problem: staff_name → branch, but staff_name is NOT a super key.
+         This violates BCNF.
+
+4.5.2: Apply Normalization to BCNF
+------------------------------------------------------------------------
+
+BEFORE (3NF - violates BCNF):
++--------------+-------------+-------------+
+| account_no   | staff_name  | branch      |
++--------------+-------------+-------------+
+| ACC2024010001| Ravi        | Delhi       |
+| ACC2024010002| Ravi        | Delhi       |
+| ACC2024010003| Priya       | Mumbai      |
+| ACC2024010004| Priya       | Mumbai      |
++--------------+-------------+-------------+
+
+AFTER (BCNF - split into two tables):
+
+Table: staff_branch
++-------------+-------------+
+| staff_name  | branch      |
++-------------+-------------+
+| Ravi        | Delhi       |
+| Priya       | Mumbai      |
++-------------+-------------+
+Primary Key: staff_name
+
+Table: account_staff
++--------------+-------------+
+| account_no   | staff_name  |
++--------------+-------------+
+| ACC2024010001| Ravi        |
+| ACC2024010002| Ravi        |
+| ACC2024010003| Priya       |
+| ACC2024010004| Priya       |
++--------------+-------------+
+Primary Key: account_no
+Foreign Key: staff_name → staff_branch(staff_name)
+
+Result: Now in every table, the left side of every functional dependency
+        is a super key. BCNF is satisfied.
+
+
+================================================================================
+4.6 Fourth Normal Form (4NF)
+================================================================================
+
+4.6.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for 4NF:
+  - Table must already be in BCNF.
+  - Remove MULTI-VALUED DEPENDENCIES.
+  - A multi-valued dependency occurs when one column determines multiple
+    independent sets of values for other columns.
+
+Consider a table where we track which SERVICES a user uses and which
+NOTIFICATION TYPES they have enabled. These two are independent of each other:
+
+Table: user_preferences (BCNF but NOT 4NF)
++---------+-----------+-------------------+
+| user_id | service   | notification_type |
++---------+-----------+-------------------+
+| 1       | savings   | info              |
+| 1       | savings   | warning           |
+| 1       | checking  | info              |
+| 1       | checking  | warning           |
+| 2       | savings   | info              |
+| 2       | savings   | success           |
++---------+-----------+-------------------+
+
+Multi-valued Dependency:
+  user_id →→ service       (user can have multiple services)
+  user_id →→ notification_type  (user can have multiple notification types)
+
+These are INDEPENDENT of each other, but combining them creates extra rows.
+
+4.6.2: Apply Normalization to 4NF
+------------------------------------------------------------------------
+
+BEFORE (BCNF - has multi-valued dependencies):
++---------+-----------+-------------------+
+| user_id | service   | notification_type |
++---------+-----------+-------------------+
+| 1       | savings   | info              |
+| 1       | savings   | warning           |
+| 1       | checking  | info              |
+| 1       | checking  | warning           |
+| 2       | savings   | info              |
+| 2       | savings   | success           |
++---------+-----------+-------------------+
+
+(6 rows needed to represent 2 services × 2 notifications for user 1)
+
+AFTER (4NF - split into two independent tables):
+
+Table: user_services
++---------+-----------+
+| user_id | service   |
++---------+-----------+
+| 1       | savings   |
+| 1       | checking  |
+| 2       | savings   |
++---------+-----------+
+Primary Key: (user_id, service)
+
+Table: user_notifications
++---------+-------------------+
+| user_id | notification_type |
++---------+-------------------+
+| 1       | info              |
+| 1       | warning           |
+| 2       | info              |
+| 2       | success           |
++---------+-------------------+
+Primary Key: (user_id, notification_type)
+
+Result: Multi-valued dependencies are removed. Each table stores only ONE
+        multi-valued fact about the user. Total rows reduced from 6 to 7
+        (3 + 4), and no unnecessary combinations are stored.
+
+
+================================================================================
+4.7 Fifth Normal Form (5NF)
+================================================================================
+
+4.7.1: Identify Dependency
+------------------------------------------------------------------------
+Rule for 5NF:
+  - Table must already be in 4NF.
+  - Remove JOIN DEPENDENCIES.
+  - A table is in 5NF if it cannot be decomposed into smaller tables
+    without losing information (lossless join).
+  - Also called PJNF (Project-Join Normal Form).
+
+Consider a table that tracks which STAFF handles which ACCOUNT TYPE at which BRANCH:
+
+Table: staff_account_branch (4NF but NOT 5NF)
++-------------+--------------+----------+
+| staff_name  | account_type | branch   |
++-------------+--------------+----------+
+| Ravi        | savings      | Delhi    |
+| Ravi        | checking     | Delhi    |
+| Priya       | savings      | Mumbai   |
+| Priya       | business     | Mumbai   |
+| Ravi        | savings      | Mumbai   |
++-------------+--------------+----------+
+
+Join Dependency:
+  This table can be decomposed into THREE smaller tables, and joining
+  them back gives the original table without any data loss:
+  - staff → account_type
+  - staff → branch
+  - account_type → branch
+
+4.7.2: Apply Normalization to 5NF
+------------------------------------------------------------------------
+
+BEFORE (4NF - has join dependency):
++-------------+--------------+----------+
+| staff_name  | account_type | branch   |
++-------------+--------------+----------+
+| Ravi        | savings      | Delhi    |
+| Ravi        | checking     | Delhi    |
+| Priya       | savings      | Mumbai   |
+| Priya       | business     | Mumbai   |
+| Ravi        | savings      | Mumbai   |
++-------------+--------------+----------+
+
+AFTER (5NF - decomposed into three tables):
+
+Table: staff_accounts
++-------------+--------------+
+| staff_name  | account_type |
++-------------+--------------+
+| Ravi        | savings      |
+| Ravi        | checking     |
+| Priya       | savings      |
+| Priya       | business     |
++-------------+--------------+
+Primary Key: (staff_name, account_type)
+
+Table: staff_branches
++-------------+----------+
+| staff_name  | branch   |
++-------------+----------+
+| Ravi        | Delhi    |
+| Ravi        | Mumbai   |
+| Priya       | Mumbai   |
++-------------+----------+
+Primary Key: (staff_name, branch)
+
+Table: branch_accounts
++--------------+----------+
+| account_type | branch   |
++--------------+----------+
+| savings      | Delhi    |
+| checking     | Delhi    |
+| savings      | Mumbai   |
+| business     | Mumbai   |
++--------------+----------+
+Primary Key: (account_type, branch)
+
+Verification (Natural Join of all three tables gives back original):
+
+  staff_accounts ⋈ staff_branches ⋈ branch_accounts = staff_account_branch
+
+Result: The table is now in 5NF. It cannot be further decomposed without
+        losing data. Each table represents exactly one independent fact.
+
+
+================================================================================
+SUMMARY: NORMALIZATION APPLIED TO BANK MANAGEMENT SYSTEM
+================================================================================
+
++------+------------------------+--------------------------------------------+
+| Form | Rule Applied           | Tables After Normalization                 |
++------+------------------------+--------------------------------------------+
+| UNF  | Raw data               | 1 table (bank_data) - all data combined    |
+| 1NF  | Atomic values, no      | 1 table - each cell has single value       |
+|      | repeating groups        |                                            |
+| 2NF  | No partial dependency  | 3 tables: users, bank_accounts,            |
+|      |                        | transactions                               |
+| 3NF  | No transitive          | 4 tables: roles, users, bank_accounts,     |
+|      | dependency             | transactions                               |
+| BCNF | Every determinant is   | Separate staff_branch and account_staff    |
+|      | a candidate key        |                                            |
+| 4NF  | No multi-valued        | Separate user_services and                 |
+|      | dependency             | user_notifications                         |
+| 5NF  | No join dependency     | Decomposed into smallest lossless tables   |
++------+------------------------+--------------------------------------------+
+
+Our final SecureBank database has the following normalized tables:
+  1. roles          (role_id, name, description)
+  2. users          (id, email, password_hash, first_name, last_name, role_id, ...)
+  3. bank_accounts  (id, account_number, user_id, account_type, balance, ...)
+  4. transactions   (id, transaction_ref, account_id, transaction_type, amount, ...)
+  5. audit_logs     (id, user_id, action, entity_type, ...)
+  6. notifications  (id, user_id, type, title, message, ...)
+
+All tables are in 3NF/BCNF, which is the standard for production databases.
+
+================================================================================
+                            END OF CHAPTER 4
+================================================================================

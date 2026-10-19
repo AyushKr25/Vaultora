@@ -1,0 +1,682 @@
+                                    CHAPTER 5
+
+        IMPLEMENTATION OF CONCURRENCY CONTROL
+              AND RECOVERY MECHANISMS
+
+
+================================================================================
+5.1 Introduction to Transactions
+================================================================================
+
+A TRANSACTION is a sequence of one or more SQL operations that are
+executed as a single logical unit of work. In our Bank Management System,
+a transaction ensures that money transfers, deposits, and withdrawals
+are processed reliably.
+
+Example: Transferring $1000 from John's savings to Jane's savings involves:
+  1. Deduct $1000 from John's account
+  2. Add $1000 to Jane's account
+Both steps MUST succeed or BOTH must fail. This is a transaction.
+
+5.1.1 Properties (ACID Properties)
+------------------------------------------------------------------------
+
++---------------+------------------------------------------------------+
+| Property      | Description                                          |
++---------------+------------------------------------------------------+
+| Atomicity     | A transaction is "all or nothing". Either ALL         |
+|               | operations succeed, or NONE of them are applied.     |
+|               | Example: If deducting from John succeeds but adding  |
+|               | to Jane fails, the entire transfer is rolled back.   |
++---------------+------------------------------------------------------+
+| Consistency   | A transaction takes the database from one VALID       |
+|               | state to another VALID state. All constraints,       |
+|               | rules, and triggers are satisfied after completion.  |
+|               | Example: Total balance before and after transfer     |
+|               | remains the same ($123,550).                         |
++---------------+------------------------------------------------------+
+| Isolation     | Multiple transactions running at the same time do    |
+|               | NOT interfere with each other. Each transaction      |
+|               | sees a consistent snapshot of the data.              |
+|               | Example: Two customers withdrawing from the same     |
+|               | account at the same time won't cause errors.         |
++---------------+------------------------------------------------------+
+| Durability    | Once a transaction is COMMITTED, the changes are     |
+|               | permanent and survive system crashes or power        |
+|               | failures.                                            |
+|               | Example: After a deposit is committed, the balance   |
+|               | is permanently updated even if the server restarts.  |
++---------------+------------------------------------------------------+
+
+
+5.1.2 States of a Transaction
+------------------------------------------------------------------------
+
+A transaction goes through the following states:
+
+                  +--------+
+                  | Active |
+                  +---+----+
+                      |
+              +-------+-------+
+              |               |
+        +-----v----+   +-----v--------+
+        | Partially |   | Failed       |
+        | Committed |   | (Error)      |
+        +-----+----+   +-----+--------+
+              |               |
+        +-----v----+   +-----v--------+
+        | Committed |   | Aborted      |
+        | (Success) |   | (Rolled Back)|
+        +-----------+   +--------------+
+
+1. ACTIVE       : Transaction starts executing SQL statements.
+2. PARTIALLY    : All SQL statements executed successfully,
+   COMMITTED      waiting for final commit.
+3. COMMITTED    : Changes are permanently saved to database.
+4. FAILED       : An error occurred during execution.
+5. ABORTED      : Transaction is rolled back, all changes undone.
+
+
+================================================================================
+5.2 Transaction Control Language (TCL)
+================================================================================
+
+TCL commands are used to manage transactions in the database.
+
+5.2.1 SAVEPOINT
+------------------------------------------------------------------------
+A SAVEPOINT creates a named point within a transaction that you can
+roll back to without undoing the entire transaction.
+
+Syntax:
+  SAVEPOINT savepoint_name;
+
+Example:
+  START TRANSACTION;
+  UPDATE bank_accounts SET balance = balance - 500 WHERE account_number = 'ACC2024010001';
+  SAVEPOINT after_deduction;
+  UPDATE bank_accounts SET balance = balance + 500 WHERE account_number = 'ACC2024010002';
+  -- If second update fails, we can rollback to after_deduction
+
+5.2.2 COMMIT
+------------------------------------------------------------------------
+COMMIT permanently saves all changes made during the current transaction.
+After COMMIT, changes cannot be undone.
+
+Syntax:
+  COMMIT;
+
+Example:
+  START TRANSACTION;
+  INSERT INTO transactions (transaction_ref, account_id, transaction_type, amount,
+    balance_before, balance_after)
+  VALUES ('TXN100', 1, 'deposit', 1000.00, 11050.00, 12050.00);
+  UPDATE bank_accounts SET balance = 12050.00 WHERE id = 1;
+  COMMIT;
+  -- Both insert and update are now permanently saved
+
+5.2.3 ROLLBACK
+------------------------------------------------------------------------
+ROLLBACK undoes all changes made during the current transaction
+(or back to a specific savepoint).
+
+Syntax:
+  ROLLBACK;                          -- Undo entire transaction
+  ROLLBACK TO savepoint_name;        -- Undo to a specific savepoint
+
+Example:
+  START TRANSACTION;
+  DELETE FROM bank_accounts WHERE id = 5;
+  -- Oops! Wrong account deleted
+  ROLLBACK;
+  -- The delete is undone, account is restored
+
+
+================================================================================
+5.3 Create 5 Transactions for the Project
+================================================================================
+
+------------------------------------------------------------------------
+5.3.1 Transaction 1: Deposit Money with Savepoint
+------------------------------------------------------------------------
+
+-- Scenario: Admin deposits $2000 into their savings account.
+-- Uses SAVEPOINT to protect partial work.
+
+SQL Statement:
+
+START TRANSACTION;
+
+-- Step 1: Record current balance
+SELECT balance FROM bank_accounts WHERE account_number = 'ACC2024ADMIN1';
+
+Output:
++----------+
+| balance  |
++----------+
+| 11050.00 |
++----------+
+
+-- Step 2: Update balance
+UPDATE bank_accounts
+SET balance = balance + 2000
+WHERE account_number = 'ACC2024ADMIN1';
+
+Output:
+1 row updated.
+
+-- Step 3: Set savepoint after deposit
+SAVEPOINT after_deposit;
+
+-- Step 4: Insert transaction record
+INSERT INTO transactions (transaction_ref, account_id, transaction_type,
+  amount, balance_before, balance_after, description, status)
+VALUES ('TXN_CH5_001', 5, 'deposit', 2000.00, 11050.00, 13050.00,
+  'Chapter 5 deposit test', 'completed');
+
+Output:
+1 row inserted.
+
+-- Step 5: Verify new balance
+SELECT balance FROM bank_accounts WHERE account_number = 'ACC2024ADMIN1';
+
+Output:
++----------+
+| balance  |
++----------+
+| 13050.00 |
++----------+
+
+-- Step 6: Commit all changes
+COMMIT;
+
+Output:
+Transaction committed successfully.
+
+
+------------------------------------------------------------------------
+5.3.2 Transaction 2: Money Transfer with Rollback to Savepoint
+------------------------------------------------------------------------
+
+-- Scenario: Transfer $1000 from John's savings (ACC2024010001) to
+-- John's checking (ACC2024010002). Simulating a mistake and rollback.
+
+SQL Statement:
+
+START TRANSACTION;
+
+-- Step 1: Deduct from savings account
+UPDATE bank_accounts
+SET balance = balance - 1000
+WHERE account_number = 'ACC2024010001';
+
+Output:
+1 row updated.
+
+-- Step 2: Set savepoint after deduction
+SAVEPOINT after_deduction;
+
+-- Step 3: Accidentally add to wrong account (Jane's account)
+UPDATE bank_accounts
+SET balance = balance + 1000
+WHERE account_number = 'ACC2024010003';
+
+Output:
+1 row updated.
+
+-- Step 4: Realize mistake! Rollback to savepoint
+ROLLBACK TO after_deduction;
+
+Output:
+Rollback to savepoint successful.
+
+-- Step 5: Now add to correct account (John's checking)
+UPDATE bank_accounts
+SET balance = balance + 1000
+WHERE account_number = 'ACC2024010002';
+
+Output:
+1 row updated.
+
+-- Step 6: Verify balances
+SELECT account_number, balance FROM bank_accounts
+WHERE account_number IN ('ACC2024010001', 'ACC2024010002', 'ACC2024010003');
+
+Output:
++--------------+----------+
+| account_no   | balance  |
++--------------+----------+
+| ACC2024010001| 14000.00 |  ← decreased by 1000
+| ACC2024010002|  6000.00 |  ← increased by 1000
+| ACC2024010003| 25000.00 |  ← unchanged (rollback worked!)
++--------------+----------+
+
+-- Step 7: Commit the correct transfer
+COMMIT;
+
+Output:
+Transaction committed successfully.
+
+
+------------------------------------------------------------------------
+5.3.3 Transaction 3: Failed Withdrawal with Full Rollback
+------------------------------------------------------------------------
+
+-- Scenario: Akshu tries to withdraw $5000 but doesn't have an account.
+-- The entire transaction is rolled back.
+
+SQL Statement:
+
+START TRANSACTION;
+
+-- Step 1: Try to find Akshu's account
+SELECT * FROM bank_accounts WHERE user_id = 5;
+
+Output:
+Empty set (0 rows).
+
+-- Step 2: Since no account exists, we cannot proceed.
+-- Any changes made should be undone.
+
+-- Let's say we accidentally inserted a transaction log before checking:
+INSERT INTO audit_logs (user_id, action, entity_type, created_at)
+VALUES (5, 'WITHDRAWAL_ATTEMPT', 'transaction', NOW());
+
+Output:
+1 row inserted.
+
+-- Step 3: Realize withdrawal cannot proceed. Rollback everything.
+ROLLBACK;
+
+Output:
+Transaction rolled back successfully.
+
+-- Step 4: Verify audit log was NOT saved
+SELECT * FROM audit_logs WHERE user_id = 5 AND action = 'WITHDRAWAL_ATTEMPT';
+
+Output:
+Empty set (0 rows).
+-- The INSERT was undone by ROLLBACK.
+
+
+------------------------------------------------------------------------
+5.3.4 Transaction 4: Bulk Deposit with Multiple Savepoints
+------------------------------------------------------------------------
+
+-- Scenario: Bank processes bulk deposits for John Doe's savings account.
+-- Multiple savepoints are created at each step.
+
+SQL Statement:
+
+START TRANSACTION;
+
+-- Step 1: Deposit $500
+UPDATE bank_accounts SET balance = balance + 500
+WHERE account_number = 'ACC2024010001';
+
+SAVEPOINT A;
+
+-- Step 2: Deposit another $300
+UPDATE bank_accounts SET balance = balance + 300
+WHERE account_number = 'ACC2024010001';
+
+SAVEPOINT B;
+
+-- Step 3: Deposit another $200
+UPDATE bank_accounts SET balance = balance + 200
+WHERE account_number = 'ACC2024010001';
+
+SAVEPOINT C;
+
+-- Step 4: Check balance after all deposits
+SELECT account_number, balance FROM bank_accounts
+WHERE account_number = 'ACC2024010001';
+
+Output:
++--------------+----------+
+| account_no   | balance  |
++--------------+----------+
+| ACC2024010001| 15000.00 |  ← after +500+300+200 = +1000
++--------------+----------+
+
+-- Step 5: Oops! Third deposit of $200 was wrong. Rollback to B.
+ROLLBACK TO B;
+
+-- Step 6: Check balance (only $500 + $300 = $800 added)
+SELECT account_number, balance FROM bank_accounts
+WHERE account_number = 'ACC2024010001';
+
+Output:
++--------------+----------+
+| account_no   | balance  |
++--------------+----------+
+| ACC2024010001| 14800.00 |  ← only +500+300 = +800 kept
++--------------+----------+
+
+-- Step 7: Now rollback to A (undo the $300 deposit too)
+ROLLBACK TO A;
+
+SELECT account_number, balance FROM bank_accounts
+WHERE account_number = 'ACC2024010001';
+
+Output:
++--------------+----------+
+| account_no   | balance  |
++--------------+----------+
+| ACC2024010001| 14500.00 |  ← only +500 kept
++--------------+----------+
+
+-- Step 8: Commit with only first deposit
+COMMIT;
+
+Output:
+Transaction committed successfully.
+
+
+------------------------------------------------------------------------
+5.3.5 Transaction 5: Freeze Account and Log with Commit
+------------------------------------------------------------------------
+
+-- Scenario: Admin freezes a suspicious account (abhiram's business account)
+-- and logs the action. All must succeed together.
+
+SQL Statement:
+
+START TRANSACTION;
+
+-- Step 1: View current account status
+SELECT account_number, is_frozen FROM bank_accounts
+WHERE account_number = 'ACC202602107905';
+
+Output:
++-----------------+-----------+
+| account_number  | is_frozen |
++-----------------+-----------+
+| ACC202602107905 | 0         |
++-----------------+-----------+
+
+-- Step 2: Freeze the account
+UPDATE bank_accounts
+SET is_frozen = TRUE
+WHERE account_number = 'ACC202602107905';
+
+Output:
+1 row updated.
+
+SAVEPOINT after_freeze;
+
+-- Step 3: Log the freeze action in audit_logs
+INSERT INTO audit_logs (user_id, action, entity_type, entity_id, created_at)
+VALUES (1, 'ACCOUNT_FROZEN', 'bank_account', 8, NOW());
+
+Output:
+1 row inserted.
+
+-- Step 4: Verify both changes
+SELECT account_number, is_frozen FROM bank_accounts
+WHERE account_number = 'ACC202602107905';
+
+Output:
++-----------------+-----------+
+| account_number  | is_frozen |
++-----------------+-----------+
+| ACC202602107905 | 1         |
++-----------------+-----------+
+
+SELECT action, entity_type FROM audit_logs
+WHERE action = 'ACCOUNT_FROZEN' ORDER BY created_at DESC LIMIT 1;
+
+Output:
++----------------+-------------+
+| action         | entity_type |
++----------------+-------------+
+| ACCOUNT_FROZEN | bank_account|
++----------------+-------------+
+
+-- Step 5: Commit both the freeze and the log
+COMMIT;
+
+Output:
+Transaction committed successfully.
+
+-- Step 6: Unfreeze it back (cleanup)
+START TRANSACTION;
+UPDATE bank_accounts SET is_frozen = FALSE WHERE account_number = 'ACC202602107905';
+COMMIT;
+
+
+================================================================================
+5.4 Concurrency Control
+================================================================================
+
+Concurrency Control ensures that when MULTIPLE users access the database
+at the SAME TIME, the data remains consistent and correct.
+
+Example Problem: Two bank tellers try to withdraw from John's account
+simultaneously:
+  - Teller A reads balance: $15,000
+  - Teller B reads balance: $15,000
+  - Teller A withdraws $5000 → writes balance: $10,000
+  - Teller B withdraws $3000 → writes balance: $12,000  (WRONG!)
+  - Correct balance should be: $7,000
+
+This is called the LOST UPDATE problem. Concurrency control prevents this.
+
+
+5.4.1 Concurrency Control Algorithms
+------------------------------------------------------------------------
+
+1. LOCK-BASED PROTOCOL: Uses locks to prevent conflicting access.
+2. TIMESTAMP-BASED PROTOCOL: Orders transactions by their timestamps.
+3. OPTIMISTIC CONCURRENCY CONTROL: Allows execution, checks conflicts at commit.
+
+Our Bank Management System uses LOCK-BASED PROTOCOL (MySQL default with InnoDB).
+
+
+5.4.2 Locking Commands
+------------------------------------------------------------------------
+
+a. Row-Level Locking – SELECT ... FOR UPDATE
+   Locks specific rows so no other transaction can modify them.
+
+Syntax:
+   SELECT * FROM table_name WHERE condition FOR UPDATE;
+
+Example:
+   START TRANSACTION;
+   SELECT balance FROM bank_accounts
+   WHERE account_number = 'ACC2024010001' FOR UPDATE;
+   -- This row is now LOCKED. No other transaction can update it
+   -- until this transaction ends with COMMIT or ROLLBACK.
+
+Output:
++----------+
+| balance  |
++----------+
+| 15000.00 |
++----------+
+-- Row is locked for exclusive access.
+
+------------------------------------------------------------------------
+
+b. Table-Level Locking – LOCK TABLES
+
+Syntax:
+   LOCK TABLES table_name lock_type;
+
+Lock Modes:
++---------------------+------------------------------------------------------+
+| Lock Mode           | Description                                          |
++---------------------+------------------------------------------------------+
+| READ (SHARE)        | Allows other sessions to READ but not WRITE.         |
+|                     | Multiple sessions can hold READ locks at same time.  |
++---------------------+------------------------------------------------------+
+| WRITE (EXCLUSIVE)   | Prevents ALL other sessions from reading or writing. |
+|                     | Only the lock holder can access the table.           |
++---------------------+------------------------------------------------------+
+
+Example - READ lock:
+   LOCK TABLES bank_accounts READ;
+   SELECT * FROM bank_accounts;   -- Allowed
+   UPDATE bank_accounts SET balance = 0 WHERE id = 1;   -- BLOCKED!
+   UNLOCK TABLES;
+
+Example - WRITE lock:
+   LOCK TABLES bank_accounts WRITE;
+   UPDATE bank_accounts SET balance = balance + 100 WHERE id = 1;  -- Allowed
+   -- Other sessions cannot read or write bank_accounts
+   UNLOCK TABLES;
+
+------------------------------------------------------------------------
+
+c. COMMIT – Release All Locks
+
+When a transaction is COMMITTED, all row-level locks held by that
+transaction are automatically released.
+
+Example:
+   START TRANSACTION;
+   SELECT * FROM bank_accounts WHERE id = 1 FOR UPDATE;   -- Lock acquired
+   UPDATE bank_accounts SET balance = 16000 WHERE id = 1;
+   COMMIT;   -- Lock released. Other transactions can now access row.
+
+------------------------------------------------------------------------
+
+d. ROLLBACK – Undo Changes & Release Locks
+
+When a transaction is ROLLED BACK, all changes are undone AND all locks
+held by that transaction are released.
+
+Example:
+   START TRANSACTION;
+   SELECT * FROM bank_accounts WHERE id = 2 FOR UPDATE;   -- Lock acquired
+   UPDATE bank_accounts SET balance = 0 WHERE id = 2;      -- Changed
+   ROLLBACK;  -- Change undone. Lock released.
+
+
+5.4.3 Concurrency Control Example for Bank Project
+------------------------------------------------------------------------
+
+Scenario: Two tellers simultaneously try to withdraw from John Doe's
+savings account (ACC2024010001, balance = $15,000).
+
+Session 1 (Teller A - Withdraws $5000):
+----------------------------------------
+START TRANSACTION;
+
+-- Step 1: Lock the row for exclusive access
+SELECT balance FROM bank_accounts
+WHERE account_number = 'ACC2024010001' FOR UPDATE;
+
+Output:
++----------+
+| balance  |
++----------+
+| 15000.00 |
++----------+
+-- Row is now LOCKED by Session 1.
+
+-- Step 2: Withdraw $5000
+UPDATE bank_accounts
+SET balance = balance - 5000
+WHERE account_number = 'ACC2024010001';
+
+Output:
+1 row updated. (balance is now 10000.00)
+
+
+Session 2 (Teller B - Tries to Withdraw $3000 at the SAME time):
+-----------------------------------------------------------------
+START TRANSACTION;
+
+-- Step 1: Try to lock the same row
+SELECT balance FROM bank_accounts
+WHERE account_number = 'ACC2024010001' FOR UPDATE;
+
+Output:
+-- ** SESSION 2 IS BLOCKED AND WAITING **
+-- It cannot proceed because Session 1 holds the lock.
+-- Session 2 will wait here until Session 1 commits or rolls back.
+
+
+Back to Session 1:
+-------------------
+-- Step 3: Commit the withdrawal
+COMMIT;
+
+Output:
+Transaction committed. Lock released.
+-- Now Session 2 can proceed.
+
+
+Session 2 continues (after Session 1's lock is released):
+----------------------------------------------------------
+-- The SELECT FOR UPDATE now returns the UPDATED balance
+Output:
++----------+
+| balance  |
++----------+
+| 10000.00 |   ← Correct! Sees $10,000 after Session 1's withdrawal
++----------+
+
+-- Step 2: Withdraw $3000
+UPDATE bank_accounts
+SET balance = balance - 3000
+WHERE account_number = 'ACC2024010001';
+
+Output:
+1 row updated. (balance is now 7000.00)
+
+-- Step 3: Commit
+COMMIT;
+
+Output:
+Transaction committed.
+
+-- Final balance check:
+SELECT balance FROM bank_accounts WHERE account_number = 'ACC2024010001';
+
+Output:
++----------+
+| balance  |
++----------+
+|  7000.00 |   ← CORRECT! 15000 - 5000 - 3000 = 7000
++----------+
+
+RESULT: By using SELECT ... FOR UPDATE, we prevented the lost update
+problem. Both withdrawals were processed correctly.
+
+Without locking, the final balance could have been $12,000 or $10,000
+(incorrect). With locking, it is correctly $7,000.
+
+
+================================================================================
+SUMMARY
+================================================================================
+
++-----------------------------+----------------------------------------------+
+| Concept                     | Implementation in SecureBank                 |
++-----------------------------+----------------------------------------------+
+| ACID Properties             | All transactions follow Atomicity,           |
+|                             | Consistency, Isolation, and Durability.       |
++-----------------------------+----------------------------------------------+
+| SAVEPOINT                   | Used to create intermediate checkpoints      |
+|                             | during deposits and transfers.               |
++-----------------------------+----------------------------------------------+
+| COMMIT                      | Used to permanently save changes after       |
+|                             | successful operations.                       |
++-----------------------------+----------------------------------------------+
+| ROLLBACK                    | Used to undo changes when errors occur       |
+|                             | (wrong account, insufficient funds).         |
++-----------------------------+----------------------------------------------+
+| Row-Level Lock (FOR UPDATE) | Used to prevent two users from modifying     |
+|                             | the same account balance simultaneously.     |
++-----------------------------+----------------------------------------------+
+| Table-Level Lock            | Used for admin operations like bulk updates  |
+|                             | or maintenance tasks.                        |
++-----------------------------+----------------------------------------------+
+
+================================================================================
+                            END OF CHAPTER 5
+================================================================================

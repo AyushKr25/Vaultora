@@ -1,0 +1,202 @@
+import mysql.connector
+from datetime import date
+
+# ---------------- DATABASE CONNECTION ----------------
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="admin"
+)
+cursor = mydb.cursor()
+
+# ---------------- DATABASE & TABLE SETUP ----------------
+cursor.execute("CREATE DATABASE IF NOT EXISTS bank")
+cursor.execute("USE bank")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS bank_master (
+    acno CHAR(4) PRIMARY KEY,
+    name VARCHAR(35),
+    city VARCHAR(20),
+    mobileno CHAR(10),
+    balance INT DEFAULT 0
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS banktrans (
+    tid INT AUTO_INCREMENT PRIMARY KEY,
+    acno CHAR(4),
+    amount INT,
+    dot DATE,
+    ttype CHAR(1),
+    FOREIGN KEY (acno) REFERENCES bank_master(acno)
+)
+""")
+
+mydb.commit()
+
+# ---------------- FUNCTIONS ----------------
+
+def account_exists(acno):
+    cursor.execute("SELECT acno FROM bank_master WHERE acno=%s", (acno,))
+    return cursor.fetchone() is not None
+
+
+def create_account():
+    print("\n--- CREATE NEW ACCOUNT ---")
+    acno = input("Enter Account No (4 digits): ")
+    if account_exists(acno):
+        print("❌ Account already exists!")
+        return
+
+    name = input("Enter Name: ")
+    city = input("Enter City: ")
+    mobile = input("Enter Mobile No: ")
+
+    cursor.execute(
+        "INSERT INTO bank_master(acno,name,city,mobileno,balance) VALUES(%s,%s,%s,%s,%s)",
+        (acno, name, city, mobile, 0)
+    )
+    mydb.commit()
+    print("✅ Account created successfully!")
+
+
+def deposit_money():
+    print("\n--- DEPOSIT MONEY ---")
+    acno = input("Enter Account No: ")
+    if not account_exists(acno):
+        print("❌ Account does not exist!")
+        return
+
+    amount = int(input("Enter Amount: "))
+    cursor.execute("UPDATE bank_master SET balance=balance+%s WHERE acno=%s", (amount, acno))
+    cursor.execute(
+        "INSERT INTO banktrans(acno,amount,dot,ttype) VALUES(%s,%s,%s,%s)",
+        (acno, amount, date.today(), 'D')
+    )
+    mydb.commit()
+    print("✅ Amount deposited successfully!")
+
+
+def withdraw_money():
+    print("\n--- WITHDRAW MONEY ---")
+    acno = input("Enter Account No: ")
+    if not account_exists(acno):
+        print("❌ Account does not exist!")
+        return
+
+    cursor.execute("SELECT balance FROM bank_master WHERE acno=%s", (acno,))
+    balance = cursor.fetchone()[0]
+
+    amount = int(input("Enter Amount: "))
+    if amount > balance:
+        print("❌ Insufficient Balance!")
+        return
+
+    cursor.execute("UPDATE bank_master SET balance=balance-%s WHERE acno=%s", (amount, acno))
+    cursor.execute(
+        "INSERT INTO banktrans(acno,amount,dot,ttype) VALUES(%s,%s,%s,%s)",
+        (acno, amount, date.today(), 'W')
+    )
+    mydb.commit()
+    print("✅ Withdrawal successful!")
+
+
+def display_account():
+    acno = input("\nEnter Account No: ")
+    cursor.execute("SELECT * FROM bank_master WHERE acno=%s", (acno,))
+    record = cursor.fetchone()
+    if record:
+        print("\nAccount No:", record[0])
+        print("Name:", record[1])
+        print("City:", record[2])
+        print("Mobile:", record[3])
+        print("Balance:", record[4])
+    else:
+        print("❌ Account not found!")
+
+
+def transaction_history():
+    acno = input("\nEnter Account No: ")
+    cursor.execute("SELECT * FROM banktrans WHERE acno=%s", (acno,))
+    records = cursor.fetchall()
+    if records:
+        print("\nTID  Amount  Date        Type")
+        for r in records:
+            print(r[0], r[2], r[3], "Deposit" if r[4]=='D' else "Withdraw")
+    else:
+        print("❌ No transactions found!")
+
+
+def update_details():
+    acno = input("\nEnter Account No: ")
+    if not account_exists(acno):
+        print("❌ Account not found!")
+        return
+
+    city = input("Enter New City: ")
+    mobile = input("Enter New Mobile No: ")
+
+    cursor.execute(
+        "UPDATE bank_master SET city=%s, mobileno=%s WHERE acno=%s",
+        (city, mobile, acno)
+    )
+    mydb.commit()
+    print("✅ Details updated!")
+
+
+def delete_account():
+    acno = input("\nEnter Account No: ")
+    if not account_exists(acno):
+        print("❌ Account not found!")
+        return
+
+    cursor.execute("DELETE FROM banktrans WHERE acno=%s", (acno,))
+    cursor.execute("DELETE FROM bank_master WHERE acno=%s", (acno,))
+    mydb.commit()
+    print("✅ Account deleted!")
+
+
+def view_all_accounts():
+    cursor.execute("SELECT * FROM bank_master")
+    for r in cursor.fetchall():
+        print(r)
+
+
+# ---------------- MAIN MENU ----------------
+while True:
+    print("\n===== BANK MANAGEMENT SYSTEM =====")
+    print("1. Create Account")
+    print("2. Deposit Money")
+    print("3. Withdraw Money")
+    print("4. Display Account")
+    print("5. Transaction History")
+    print("6. Update Account Details")
+    print("7. Delete Account")
+    print("8. View All Accounts (Admin)")
+    print("9. Exit")
+
+    choice = int(input("Enter choice: "))
+
+    if choice == 1:
+        create_account()
+    elif choice == 2:
+        deposit_money()
+    elif choice == 3:
+        withdraw_money()
+    elif choice == 4:
+        display_account()
+    elif choice == 5:
+        transaction_history()
+    elif choice == 6:
+        update_details()
+    elif choice == 7:
+        delete_account()
+    elif choice == 8:
+        view_all_accounts()
+    elif choice == 9:
+        print("Thank you for using Bank System!")
+        break
+    else:
+        print("❌ Invalid choice!")

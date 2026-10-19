@@ -1,0 +1,16 @@
+==================================================
+JWT DEBUG
+==================================================
+
+1. JWT_SECRET_KEY from env: super-secure-jwt-secret-key-for-bank-app-2024-minimum-32-bytes
+
+2. App JWT_SECRET_KEY: super-secure-jwt-secret-key-for-bank-app-2024-minimum-32-bytes
+3. Keys match: True
+
+4. Creating test token...
+   Token created: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsIml...
+
+5. Decoding token...
+   FAILED: InvalidSubjectError: Subject must be a string
+
+==================================================
