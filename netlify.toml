@@ -9,16 +9,17 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# SPA fallback: serve index.html for all routes (React Router)
+# Proxy API calls to the Flask backend on Render.
+# This runs at the edge - no VITE_API_URL env var needed, and no CORS issues.
+# Must be listed BEFORE the SPA catch-all below (first match wins).
+[[redirects]]
+  from = "/api/*"
+  to = "https://vaultora-xeic.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback: serve index.html for all other routes (React Router)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Optional: proxy /api to a backend. If you deploy the backend on Render and
-# set VITE_API_URL instead (recommended), this section is not used.
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://your-backend.onrender.com/api/:splat"
-#   status = 200
-#   force = true
