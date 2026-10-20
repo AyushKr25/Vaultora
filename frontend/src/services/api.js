@@ -2,8 +2,9 @@ import axios from 'axios';
 
 // In dev, '/api' is proxied to localhost:5000 by Vite.
 // In production (e.g. Netlify), set VITE_API_URL to your backend's public URL
-// (e.g. https://your-backend.onrender.com).
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// (e.g. https://your-backend.onrender.com) — the '/api' prefix is appended
+// automatically, so do NOT include it in the value.
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || ''}/api`;
 
 const api = axios.create({
     baseURL: API_BASE_URL,
