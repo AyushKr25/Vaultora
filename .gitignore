@@ -1,0 +1,32 @@
+# ---- Python ----
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ---- Node ----
+node_modules/
+frontend/dist/
+npm-debug.log*
+
+# ---- Environment & secrets (keep .env.example committed) ----
+.env
+.env.*
+!.env.example
+
+# ---- Build output / caches ----
+.netlify/
+.render/
+*.log
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---- Misc ----
+*.sqlite
+*.db

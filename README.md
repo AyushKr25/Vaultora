@@ -1,127 +1,185 @@
-# 🏦 SecureBank - Banking Management System
+<div align="center">
 
-A modern, full-featured banking management system with a beautiful user interface, real-time notifications, and comprehensive account management features.
+# 🏦 SecureBank
 
-![SecureBank](https://img.shields.io/badge/SecureBank-v1.0.0-blue)
-![Python](https://img.shields.io/badge/Python-3.10+-green)
-![React](https://img.shields.io/badge/React-18.2-blue)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-orange)
+### Modern Banking Management System
+
+A full-stack banking application with a beautiful UI, real-time notifications,
+secure JWT authentication, and a managed **Supabase (PostgreSQL)** database.
+
+**[🚀 LIVE DEMO — https://vaultora2.netlify.app](https://vaultora2.netlify.app/)**
+
+[![Netlify](https://img.shields.io/badge/LIVE-Netlify-00AD9F?style=for-the-badge&logo=netlify)](https://vaultora2.netlify.app/)
+[![React](https://img.shields.io/badge/Frontend-React_18-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
+[![Flask](https://img.shields.io/badge/Backend-Flask-000000?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com/)
+[![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+
+</div>
+
+---
+
+## 📸 Screenshots
+
+> _Attach your app screenshots in the `screenshots/` folder with the filenames below — they will appear here automatically._
+
+### 🔐 Authentication
+
+| Login | Register |
+|:---:|:---:|
+| ![Login Page](screenshots/login.png) | ![Register Page](screenshots/register.png) |
+
+### 🏠 Customer Dashboard
+
+| Dashboard | Accounts |
+|:---:|:---:|
+| ![Dashboard](screenshots/dashboard.png) | ![Accounts](screenshots/accounts.png) |
+
+### 💰 Transactions
+
+| Deposit | Withdraw |
+|:---:|:---:|
+| ![Deposit](screenshots/deposit.png) | ![Withdraw](screenshots/withdraw.png) |
+
+| Transfer | Transaction History |
+|:---:|:---:|
+| ![Transfer](screenshots/transfer.png) | ![History](screenshots/history.png) |
+
+### 🔔 Notifications & Settings
+
+| Notifications | Settings |
+|:---:|:---:|
+| ![Notifications](screenshots/notifications.png) | ![Settings](screenshots/settings.png) |
+
+### 🛡️ Admin Panel
+
+| Admin Dashboard | User Management |
+|:---:|:---:|
+| ![Admin Dashboard](screenshots/admin-dashboard.png) | ![Admin Users](screenshots/admin-users.png) |
+
+---
 
 ## ✨ Features
 
-### 👤 User Management
-- **User Registration & Login** - Secure authentication with JWT tokens
-- **Profile Management** - Update personal info (name, phone, address, date of birth)
-- **Password Change** - Securely update password with validation
-- **Role-based Access** - Admin and Customer roles
+| Category | Highlights |
+|----------|-----------|
+| 👤 **User Management** | Registration & login with JWT · profile management · password change with validation · role-based access (Admin / Customer) |
+| 💳 **Accounts** | Savings / Checking / Business accounts · instant account creation · freeze status · daily transaction limits |
+| 💰 **Transactions** | Deposits · withdrawals (balance + limit checks) · transfers between accounts · filterable history · PDF statements |
+| 🔔 **Notifications** | Instant alerts for deposits, withdrawals, transfers · notification center · unread badge |
+| 🛡️ **Admin** | Dashboard stats & charts · user activate/deactivate · freeze/unfreeze accounts · complete audit logs |
+| 🎨 **UI** | Dark/light theme · multi-currency display (USD, EUR, GBP, INR, JPY) · animated with Framer Motion · fully responsive |
 
-### 💳 Account Management
-- **Multiple Account Types** - Savings, Checking, Business accounts
-- **Account Creation** - Create new bank accounts instantly
-- **Balance Visibility Toggle** - Show/hide balances for privacy
-- **Daily Transaction Limits** - Security limits on withdrawals
+---
 
-### 💰 Transactions
-- **Deposits** - Add funds to any account
-- **Withdrawals** - Withdraw with sufficient balance check
-- **Transfers** - Transfer between accounts (yours or others)
-- **Transaction History** - Complete transaction log with filters
+## 🚀 Tech Stack
 
-### 🔔 Real-Time Notifications
-- **Instant Alerts** - Get notified for deposits, withdrawals, transfers
-- **Notification Center** - View all notifications with read/unread status
-- **Auto-polling** - Real-time updates every 30 seconds
+| Layer | Technologies |
+|-------|--------------|
+| **Frontend** | React 18 · Vite · Tailwind CSS · Framer Motion · Chart.js · React Hot Toast · React Router |
+| **Backend** | Flask · Flask-JWT-Extended · SQLAlchemy · Flask-Limiter · bcrypt · ReportLab |
+| **Database** | Supabase (PostgreSQL 17) · triggers · CHECK constraints · JSONB audit logs |
+| **Hosting** | Frontend → Netlify · Backend → Render |
 
-### ⚙️ Settings & Preferences
-- **Currency Settings** - Choose from USD, EUR, GBP, INR, JPY (app-wide)
-- **Language Preferences** - Select preferred language
-- **Timezone Selection** - Set your timezone
-- **Theme Toggle** - Dark/Light mode support
-- **Notification Preferences** - Customize notifications
+---
 
-### 🛡️ Admin Dashboard
-- **User Management** - View, activate/deactivate users
-- **Account Overview** - Monitor all bank accounts
-- **Transaction Logs** - View all system transactions
-- **Audit Logs** - Complete activity audit trail
+## 🔐 Demo Credentials
 
-## 🚀 Quick Start
+| Role | Email | Password |
+|------|-------|----------|
+| 👑 Admin | `admin@bank.com` | `Password@123` |
+| 👤 Customer | `john.doe@email.com` | `Password@123` |
+| 👤 Customer | `jane.smith@email.com` | `Password@123` |
+| 👤 Customer | `bob.wilson@email.com` | `Password@123` |
+| 🧊 Customer (frozen) | `alice.johnson@email.com` | `Password@123` |
+
+---
+
+## 🛠️ Getting Started
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- MySQL 8.0+
-- npm or yarn
+- A free [Supabase](https://supabase.com) project
 
-### Database Setup
+### 1. Database (Supabase)
 
-1. Create MySQL database:
-```sql
-CREATE DATABASE bank_management_system;
-```
+Create a project at [supabase.com](https://supabase.com), open the **SQL Editor**
+in the dashboard, and run [`database/supabase_schema.sql`](database/supabase_schema.sql).
+This creates all tables, triggers, and seed data (5 demo users, 6 accounts,
+sample transactions).
 
-2. Run the setup script:
-```bash
-cd database
-mysql -u root -p bank_management_system < setup_database.sql
-```
+> 💡 Get your connection string from **Project Settings → Database → Connection pooling** (session mode, IPv4-friendly).
 
-### Backend Setup
+### 2. Backend
 
-1. Navigate to backend:
 ```bash
 cd backend
-```
-
-2. Create virtual environment:
-```bash
 python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
-```
-
-3. Install dependencies:
-```bash
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
+copy .env.example .env        # edit with your Supabase credentials
+python run.py                 # runs at http://localhost:5000
 ```
 
-4. Configure environment:
-```bash
-copy .env.example .env
-# Edit .env with your MySQL credentials
-```
+> ⚠️ **Restricted networks (college/corporate WiFi):** outbound port 5432 is often
+> blocked, which prevents direct Supabase connections. For offline development set
+> `DATABASE_URL=sqlite:///bank_dev.db` in `.env` — the app creates its schema automatically.
 
-5. Run the server:
-```bash
-python run.py
-```
+### 3. Frontend
 
-Backend will run at: `http://localhost:5000`
-
-### Frontend Setup
-
-1. Navigate to frontend:
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-```bash
 npm install
+npm run dev                   # runs at http://localhost:5173 (proxies /api → :5000)
 ```
 
-3. Start development server:
-```bash
-npm run dev -- --host
-```
+---
 
-Frontend will run at: `http://localhost:5173`
+## ☁️ Deployment
 
-## 🔐 Default Login Credentials
+This project deploys as two free-tier services:
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@bank.com | Password@123 |
+**Backend → Render** (Netlify cannot run Flask)
+
+1. Push this repo to GitHub
+2. On [Render](https://dashboard.render.com): **New → Blueprint** → select the repo
+   (uses [`render.yaml`](render.yaml))
+3. When prompted enter:
+   - `DB_PASSWORD` → your Supabase database password
+   - `CORS_ORIGINS` → your Netlify site URL (`https://vaultora2.netlify.app`)
+
+**Frontend → Netlify**
+
+1. On [Netlify](https://app.netlify.com): **Add new site → Import an existing project**
+   (uses [`netlify.toml`](netlify.toml))
+2. Set the environment variable `VITE_API_URL` → your Render service URL
+3. Redeploy after setting the variable
+
+---
+
+## 📄 API Overview
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/register` | POST | Register a new user |
+| `/api/auth/login` | POST | Login (JWT access + refresh tokens) |
+| `/api/auth/me` | GET | Current user profile |
+| `/api/accounts` | GET / POST | List / create bank accounts |
+| `/api/accounts/summary` | GET | Aggregate balances |
+| `/api/transactions/deposit` | POST | Deposit funds |
+| `/api/transactions/withdraw` | POST | Withdraw funds |
+| `/api/transactions/transfer` | POST | Transfer between accounts |
+| `/api/transactions/history` | GET | Paginated, filterable history |
+| `/api/transactions/statement` | GET | Download PDF statement |
+| `/api/transactions/analytics` | GET | Spending analytics |
+| `/api/notifications` | GET | List notifications |
+| `/api/admin/dashboard` | GET | Admin statistics |
+| `/api/admin/users` | GET | User management |
+| `/api/admin/logs` | GET | Audit logs |
+
+---
 
 ## 📁 Project Structure
 
@@ -129,112 +187,51 @@ Frontend will run at: `http://localhost:5173`
 bank-app/
 ├── backend/
 │   ├── app/
-│   │   ├── models/          # Database models
-│   │   ├── routes/          # API endpoints
-│   │   └── utils/           # Utilities
-│   ├── run.py              # Server entry point
+│   │   ├── models/          # SQLAlchemy models (PostgreSQL)
+│   │   └── routes/          # REST API endpoints
+│   ├── run.py               # Server entry point
 │   └── requirements.txt
-│
 ├── frontend/
 │   ├── src/
 │   │   ├── components/      # Reusable UI components
-│   │   ├── context/         # React contexts (Auth, Theme, Currency)
-│   │   ├── pages/           # Page components
-│   │   └── services/        # API services
+│   │   ├── context/         # Auth, Theme, Currency contexts
+│   │   ├── pages/           # App pages (customer + admin)
+│   │   └── services/        # Axios API client
 │   └── package.json
-│
-└── database/
-    ├── setup_database.sql   # Schema setup
-    ├── seed.sql             # Sample data
-    └── triggers.sql         # Database triggers
+├── database/
+│   ├── supabase_schema.sql  # PostgreSQL schema + seed data
+│   └── ...
+├── screenshots/             # App screenshots (README)
+├── netlify.toml             # Frontend deployment config
+└── render.yaml              # Backend deployment config
 ```
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Flask** - Python web framework
-- **Flask-JWT-Extended** - JWT authentication
-- **SQLAlchemy** - ORM for database
-- **Flask-CORS** - Cross-origin resource sharing
-- **MySQL** - Database
-
-### Frontend
-- **React 18** - UI library
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Framer Motion** - Animations
-- **Chart.js** - Data visualization
-- **React Router** - Navigation
-- **React Hot Toast** - Notifications
-
-## 📱 Screenshots
-
-### Dashboard
-The main dashboard shows account summary, recent transactions, and quick action buttons.
-
-### Accounts Page
-View all your bank accounts with beautiful card designs showing balance and account type.
-
-### Transaction History
-Complete transaction history with filtering by account, type, and date range.
-
-### Settings
-Customize your preferences including currency, language, timezone, and notification settings.
-
-## 🔒 Security Features
-
-- JWT token authentication
-- Password hashing with bcrypt
-- Rate limiting on API endpoints
-- CORS protection
-- Input validation and sanitization
-- SQL injection prevention (SQLAlchemy ORM)
-
-## 📄 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/change-password` - Change password
-
-### Accounts
-- `GET /api/accounts` - Get all user accounts
-- `POST /api/accounts` - Create new account
-- `GET /api/accounts/summary` - Get account summary
-
-### Transactions
-- `POST /api/transactions/deposit` - Make a deposit
-- `POST /api/transactions/withdraw` - Make a withdrawal
-- `POST /api/transactions/transfer` - Transfer funds
-- `GET /api/transactions/history` - Get transaction history
-
-### Notifications
-- `GET /api/notifications` - Get all notifications
-- `PUT /api/notifications/:id/read` - Mark as read
-- `DELETE /api/notifications/:id` - Delete notification
-
-### Users
-- `PUT /api/users/profile` - Update profile
-- `GET /api/users/preferences` - Get preferences
-- `PUT /api/users/preferences` - Update preferences
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📜 License
-
-This project is licensed under the MIT License.
-
-## 👨‍💻 Author
-
-Created with ❤️ for educational purposes.
 
 ---
 
-**Note:** This application is for educational/demonstration purposes only. Do not use for actual banking operations.
+## 🔒 Security
+
+- JWT authentication with access + refresh tokens
+- bcrypt password hashing (12 rounds)
+- Rate limiting on auth endpoints (Flask-Limiter)
+- CORS whitelist · input validation · SQL injection prevention (SQLAlchemy ORM)
+- Server-side balance & daily-limit enforcement + DB CHECK constraints
+
+> **Note:** Demo users store a `plain_password` column for educational purposes — remove before any real-world use. Never commit `.env` files (already excluded via `.gitignore`).
+
+---
+
+## 📜 License
+
+Released under the MIT License.
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you found it useful!**
+
+</div>
+
+---
+
+**Disclaimer:** This application is for educational/demonstration purposes only. Do not use for actual banking operations.

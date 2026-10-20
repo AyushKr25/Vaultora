@@ -3,6 +3,7 @@ Flask Configuration Settings
 """
 import os
 from datetime import timedelta
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 # Load environment variables BEFORE class definition
@@ -11,23 +12,40 @@ load_dotenv()
 
 class Config:
     """Base configuration."""
-    
+
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     DEBUG = os.getenv('FLASK_DEBUG', '0') == '1'
-    
-    # Database
+
+    # Database - Supabase PostgreSQL
+    # Preferred: set DATABASE_URL directly (postgresql://user:pass@host:port/db)
+    DATABASE_URL = os.getenv('DATABASE_URL')
     DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = os.getenv('DB_PORT', '3306')
-    DB_NAME = os.getenv('DB_NAME', 'bank_app')
-    DB_USER = os.getenv('DB_USER', 'root')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', 'admin')
-    
-    SQLALCHEMY_DATABASE_URI = (
-        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    DB_PORT = os.getenv('DB_PORT', '5432')
+    DB_NAME = os.getenv('DB_NAME', 'postgres')
+    DB_USER = os.getenv('DB_USER', 'postgres')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL or (
+        f"postgresql+psycopg2://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+    # Engine options differ per backend (sslmode/connect_args are Postgres-only)
+    if SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
+        SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 5,
+            'max_overflow': 5,
+            'connect_args': {
+                'sslmode': 'require',
+                'connect_timeout': 10,
+            },
+        }
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')

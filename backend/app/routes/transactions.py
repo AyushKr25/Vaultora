@@ -253,6 +253,18 @@ def transfer():
         db.session.add(incoming)
         db.session.commit()
         
+        # Log both sides of the transfer
+        AuditLog.log_transaction(user.id, outgoing, request.remote_addr)
+        
+        # Notify sender (and receiver if it's a different user)
+        Notification.create_transaction_notification(
+            from_account.user_id, 'transfer_out', amount, from_account.account_number
+        )
+        if to_account.user_id != from_account.user_id:
+            Notification.create_transaction_notification(
+                to_account.user_id, 'transfer_in', amount, to_account.account_number
+            )
+        
         return jsonify({
             'message': f'Successfully transferred ${amount:.2f}',
             'transaction': outgoing.to_dict(),

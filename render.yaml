@@ -1,0 +1,41 @@
+# Render Blueprint - deploys the Flask backend
+# Netlify hosts the frontend; this blueprint hosts the API.
+#
+# 1. Push this repo to GitHub
+# 2. On https://dashboard.render.com -> New -> Blueprint -> pick the repo
+# 3. When prompted, enter:
+#    DB_PASSWORD    = your Supabase database password
+#    CORS_ORIGINS   = your Netlify site URL (e.g. https://your-site.netlify.app)
+# 4. After deploy, set VITE_API_URL (Netlify env var) to the Render service URL
+
+services:
+  - type: web
+    name: securebank-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DB_HOST
+        value: aws-0-ap-southeast-1.pooler.supabase.com
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres.fozzuemmmznnsqfnpziu
+      - key: DB_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
