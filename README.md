@@ -7,7 +7,7 @@
 A full-stack banking application with a beautiful UI, real-time notifications,
 secure JWT authentication, and a managed **Supabase (PostgreSQL)** database.
 
-**[🚀 LIVE DEMO — https://vaultora2.netlify.app](https://vaultora2.netlify.app/)**
+**[🚀 LIVE — https://vaultora2.netlify.app](https://vaultora2.netlify.app/)**
 
 [![Netlify](https://img.shields.io/badge/LIVE-Netlify-00AD9F?style=for-the-badge&logo=netlify)](https://vaultora2.netlify.app/)
 [![React](https://img.shields.io/badge/Frontend-React_18-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
